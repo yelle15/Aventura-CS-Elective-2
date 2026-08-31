@@ -234,6 +234,134 @@ Widget _buildTabletStatCards() {
 // ============================================================
 
 Widget _buildNavigationDrawer() {
+  final isIOS =
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  if (isIOS) {
+    return Drawer(
+      backgroundColor: CupertinoColors.systemBackground,
+      child: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 24),
+
+            const Icon(
+              CupertinoIcons.heart_fill,
+              size: 48,
+              color: CupertinoColors.systemRed,
+            ),
+
+            const SizedBox(height: 40),
+
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12,
+              ),
+              onPressed: () {},
+              child: const Row(
+                children: [
+                  Icon(
+                    CupertinoIcons.home,
+                    size: 18,
+                    color: CupertinoColors.label,
+                  ),
+                  SizedBox(width: 14),
+                  Text(
+                    'DASHBOARD',
+                    style: TextStyle(
+                      color: CupertinoColors.label,
+                      fontSize: 10,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12,
+              ),
+              onPressed: () {},
+              child: const Row(
+                children: [
+                  Icon(
+                    CupertinoIcons.settings,
+                    size: 18,
+                    color: CupertinoColors.label,
+                  ),
+                  SizedBox(width: 14),
+                  Text(
+                    'SETTINGS',
+                    style: TextStyle(
+                      color: CupertinoColors.label,
+                      fontSize: 10,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12,
+              ),
+              onPressed: () {},
+              child: const Row(
+                children: [
+                  Icon(
+                    CupertinoIcons.info,
+                    size: 18,
+                    color: CupertinoColors.label,
+                  ),
+                  SizedBox(width: 14),
+                  Text(
+                    'ABOUT',
+                    style: TextStyle(
+                      color: CupertinoColors.label,
+                      fontSize: 10,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12,
+              ),
+              onPressed: () {},
+              child: const Row(
+                children: [
+                  Icon(
+                    CupertinoIcons.arrow_right_square,
+                    size: 18,
+                    color: CupertinoColors.label,
+                  ),
+                  SizedBox(width: 14),
+                  Text(
+                    'LOGOUT',
+                    style: TextStyle(
+                      color: CupertinoColors.label,
+                      fontSize: 10,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   return Drawer(
     child: SafeArea(
       child: Column(

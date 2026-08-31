@@ -634,7 +634,7 @@ Widget _buildNavigationDrawer() {
   }
 }
 
-class AdaptiveNavigationItem extends StatelessWidget {
+class AdaptiveNavigationItem extends StatefulWidget {
   final IconData icon;
   final String label;
 
@@ -644,12 +644,35 @@ class AdaptiveNavigationItem extends StatelessWidget {
     required this.label,
   });
 
+  @override
+  State<AdaptiveNavigationItem> createState() =>
+      _AdaptiveNavigationItemState();
+}
+
+class _AdaptiveNavigationItemState
+    extends State<AdaptiveNavigationItem> {
   bool get isIOS {
-    return !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    return !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.iOS;
   }
+
+  bool get isAndroid {
+    return !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android;
+  }
+
+  bool get isWeb {
+    return kIsWeb;
+  }
+
+  bool isHovered = false;
 
   @override
   Widget build(BuildContext context) {
+    // ========================================================
+    // iOS
+    // ========================================================
+
     if (isIOS) {
       return CupertinoButton(
         padding: const EdgeInsets.symmetric(
@@ -660,13 +683,13 @@ class AdaptiveNavigationItem extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              icon,
+              widget.icon,
               size: 18,
               color: CupertinoColors.label,
             ),
             const SizedBox(width: 14),
             Text(
-              label,
+              widget.label,
               style: const TextStyle(
                 color: CupertinoColors.label,
                 fontSize: 10,
@@ -678,30 +701,91 @@ class AdaptiveNavigationItem extends StatelessWidget {
       );
     }
 
-    return InkWell(
-      onTap: () {},
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 12,
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 16,
-            ),
-            const SizedBox(width: 14),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 10,
-                letterSpacing: 2,
+    // ========================================================
+    // WEB
+    // ========================================================
+
+    if (isWeb) {
+      return MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) {
+          setState(() {
+            isHovered = true;
+          });
+        },
+        onExit: (_) {
+          setState(() {
+            isHovered = false;
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: double.infinity,
+          color: isHovered
+              ? Colors.grey.shade200
+              : Colors.transparent,
+          child: InkWell(
+            onTap: () {},
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    widget.icon,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 14),
+                  Text(
+                    widget.label,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
-      ),
-    );
+      );
+    }
+
+    // ========================================================
+    // ANDROID
+    // ========================================================
+
+    if (isAndroid) {
+      return InkWell(
+        onTap: () {},
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 12,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                widget.icon,
+                size: 16,
+              ),
+              const SizedBox(width: 14),
+              Text(
+                widget.label,
+                style: const TextStyle(
+                  fontSize: 10,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Fallback
+    return const SizedBox.shrink();
   }
 }

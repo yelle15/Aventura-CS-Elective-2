@@ -195,7 +195,7 @@ class WishlistScreen extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: () => context.go('/'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.red,
+              backgroundColor: colors.primary,
               foregroundColor: colors.onPrimary,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
               shape: RoundedRectangleBorder(

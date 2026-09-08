@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../data/products.dart';
 import '../models/product.dart';
 import '../widgets/home/hero_banner.dart';
-import '../widgets/home/product_categories.dart';
 import '../widgets/navigation/app_bar.dart';
 import '../widgets/navigation/bottom_navigation.dart';
 import '../widgets/product/product_grid.dart';
@@ -18,14 +17,19 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String _selectedCategory = 'Guitars';
+  final GlobalKey _productsKey = GlobalKey();
+  String _selectedCategory = 'All Products';
 
-  List<Product> get _visibleProducts => products.where((product) {
-    if (_selectedCategory == 'Guitars') {
-      return product.category == 'Electric Guitars';
-    }
-    return product.category == 'Amplifiers';
-  }).toList();
+  List<String> get _categories => products
+      .map((product) => product.category)
+      .toSet()
+      .toList();
+
+    List<Product> get _visibleProducts => _selectedCategory == 'All Products'
+      ? products
+      : products
+        .where((product) => product.category == _selectedCategory)
+        .toList();
 
   @override
   Widget build(BuildContext context) {
@@ -45,18 +49,59 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const HeroBanner(),
-                const SizedBox(height: 12),
-                ProductCategories(
-                  selectedCategory: _selectedCategory,
-                  onCategorySelected: (category) {
-                    setState(() {
-                      _selectedCategory = category;
-                    });
+                HeroBanner(
+                  onShopPressed: () {
+                    Scrollable.ensureVisible(
+                      _productsKey.currentContext!,
+                      alignment: 0.05,
+                      duration: const Duration(milliseconds: 500),
+                    );
                   },
                 ),
-                const SizedBox(height: 16),
-                ProductGrid(products: _visibleProducts),
+                Container(
+                  key: _productsKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 16),
+                      Text(
+                        'All Products',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final category in [
+                            'All Products',
+                            ..._categories,
+                          ])
+                            FilterChip(
+                              label: Text(category),
+                              selected: _selectedCategory == category,
+                              onSelected: (_) {
+                                setState(() {
+                                  _selectedCategory = category;
+                                });
+                              },
+                              showCheckmark: false,
+                              selectedColor: Theme.of(context)
+                                  .colorScheme
+                                  .primary,
+                              labelStyle: TextStyle(
+                                color: _selectedCategory == category
+                                    ? Theme.of(context).colorScheme.onPrimary
+                                    : Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ProductGrid(products: _visibleProducts),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

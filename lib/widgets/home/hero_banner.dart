@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../common/app_image_placeholder.dart';
 
 class HeroBanner extends StatelessWidget {
-  const HeroBanner({super.key});
+  const HeroBanner({super.key, required this.onShopPressed});
+
+  final VoidCallback onShopPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -22,13 +24,16 @@ class HeroBanner extends StatelessWidget {
                   children: [
                     Text(
                       'FIND YOUR',
-                      style: Theme.of(context).textTheme.headlineMedium,
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                     Text(
                       'SOUND',
                       style: Theme.of(context).textTheme.headlineMedium
                           ?.copyWith(
                             color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w900,
                           ),
                     ),
                     const SizedBox(height: 8),
@@ -43,7 +48,7 @@ class HeroBanner extends StatelessWidget {
                       width: 160,
                       height: 48,
                       child: ElevatedButton(
-                        onPressed: () {},
+                        onPressed: onShopPressed,
                         child: const Text('Shop for guitars'),
                       ),
                     ),

@@ -5,6 +5,8 @@ import '../../models/product.dart';
 import '../../theme/app_theme.dart';
 import '../common/app_image_placeholder.dart';
 import '../common/status_badge.dart';
+import '../../services/wishlist_service.dart';
+import '../common/wishlist_modal.dart';
 import 'product_price.dart';
 
 class ProductCard extends StatefulWidget {
@@ -18,8 +20,6 @@ class ProductCard extends StatefulWidget {
 }
 
 class _ProductCardState extends State<ProductCard> {
-  bool _isBookmarked = false;
-
   @override
 
   Widget build(BuildContext context) {
@@ -31,18 +31,13 @@ class _ProductCardState extends State<ProductCard> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: BorderSide(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.white
-              : AppTheme.border,
+            color: Theme.of(context).colorScheme.outline,
         ),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap:
-            widget.onTap ??
-            (widget.product.id == '355-epiphone'
-                ? () => context.go('/product/355-epiphone')
-                : null),
+            widget.onTap ?? () => context.go('/product/${widget.product.id}'),
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Column(
@@ -60,26 +55,36 @@ class _ProductCardState extends State<ProductCard> {
                     ),
                     if (widget.product.isNew)
                       const Positioned(
-                        top: 4,
-                        left: 4,
+                        top: 8,
+                        left: 8,
                         child: StatusBadge(label: 'NEW'),
                       ),
-                    Positioned(
-                      top: 0,
-                      right: 0,
-                      child: IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _isBookmarked = !_isBookmarked;
-                          });
-                        },
-                        tooltip: 'Bookmark ${widget.product.name}',
-                        icon: Icon(
-                          _isBookmarked
-                              ? Icons.bookmark_rounded
-                              : Icons.bookmark_border_rounded,
-                        ),
-                      ),
+                    ListenableBuilder(
+                      listenable: WishlistService.instance,
+                      builder: (context, _) {
+                        final isBookmarked = WishlistService.instance.isWishlisted(widget.product.id);
+                        return Positioned(
+                          top: 4,
+                          right: 4,
+                          child: IconButton(
+                            onPressed: () {
+                              final isAdded = WishlistService.instance.toggleWishlist(widget.product);
+                              showWishlistModal(context, widget.product, isAdded);
+                            },
+                            tooltip: 'Bookmark ${widget.product.name}',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            visualDensity: VisualDensity.compact,
+                            icon: Icon(
+                              isBookmarked
+                                  ? Icons.bookmark_rounded
+                                  : Icons.bookmark_border_rounded,
+                              color: isBookmarked ? AppTheme.red : AppTheme.neutral,
+                              size: 22,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

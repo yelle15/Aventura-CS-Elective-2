@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import 'routing/app_router.dart';
 import 'theme/app_theme.dart';
@@ -12,6 +13,13 @@ class RiftsApp extends StatefulWidget {
 
 class _RiftsAppState extends State<RiftsApp> {
   ThemeMode _themeMode = ThemeMode.dark;
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _router = createAppRouter(_toggleTheme);
+  }
 
   void _toggleTheme() {
     setState(() {
@@ -29,7 +37,7 @@ class _RiftsAppState extends State<RiftsApp> {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: _themeMode,
-      routerConfig: createAppRouter(_toggleTheme),
+      routerConfig: _router,
     );
   }
 }

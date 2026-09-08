@@ -20,8 +20,8 @@ class StatusBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onPrimary,
           fontSize: 11,
           fontWeight: FontWeight.bold,
         ),

@@ -8,6 +8,10 @@ class AppTheme {
   static const lightCard = Color(0xFFE5E5E7);
   static const border = Color(0xFF333337);
   static const muted = Color(0xFFA7A7AD);
+  static const success = Color(0xFF2E7D32);
+  static const rating = Color(0xFFFFB300);
+  static const neutral = Color(0xFF757575);
+  static const onAccent = Color(0xFFFFFFFF);
 
   static ThemeData get dark => _build(Brightness.dark);
   static ThemeData get light => _build(Brightness.light);

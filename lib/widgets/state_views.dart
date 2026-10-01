@@ -1,5 +1,55 @@
 import 'package:flutter/material.dart';
 
+class SpinningPokeball extends StatefulWidget {
+  const SpinningPokeball({super.key, this.size = 56});
+
+  final double size;
+
+  @override
+  State<SpinningPokeball> createState() => _SpinningPokeballState();
+}
+
+class _SpinningPokeballState extends State<SpinningPokeball>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: widget.size,
+      child: RotationTransition(
+        turns: _controller,
+        child: Image.asset(
+          'assets/images/pokeball.png',
+          width: widget.size,
+          height: widget.size,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => Icon(
+            Icons.catching_pokemon,
+            size: widget.size,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class LoadingView extends StatelessWidget {
   const LoadingView({super.key, this.message = 'Catching Pokémon...'});
 
@@ -14,9 +64,12 @@ class LoadingView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CircularProgressIndicator(),
+              const SpinningPokeball(size: 64),
               const SizedBox(height: 16),
-              Text(message),
+              Text(
+                message,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
             ],
           ),
         ),

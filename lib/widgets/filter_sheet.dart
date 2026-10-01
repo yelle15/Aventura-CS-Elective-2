@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/pokemon.dart';
 import '../models/pokemon_details.dart';
 import '../models/pokemon_filter.dart';
+import 'state_views.dart';
 
 class FilterSheet extends StatefulWidget {
   const FilterSheet({super.key, required this.initial, required this.allDetails});
@@ -43,7 +44,7 @@ class _FilterSheetState extends State<FilterSheet> {
             future: widget.allDetails,
             builder: (context, snapshot) {
               if (snapshot.connectionState != ConnectionState.done) {
-                return const Center(child: CircularProgressIndicator());
+                return const Center(child: SpinningPokeball(size: 44));
               }
               final loaded =
                   (snapshot.data ?? const {}).values.whereType<PokemonDetails>().toList();

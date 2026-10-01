@@ -4,6 +4,7 @@ import '../models/pokemon.dart';
 import '../models/pokemon_details.dart';
 import '../services/pokemon_service.dart';
 import 'card_palette.dart';
+import 'state_views.dart';
 
 class PokemonCard extends StatefulWidget {
   const PokemonCard({super.key, required this.pokemon, required this.service});
@@ -271,10 +272,7 @@ class _ArtWindow extends StatelessWidget {
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
           return const Center(
-            child: SizedBox.square(
-              dimension: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
+            child: SpinningPokeball(size: 24),
           );
         },
         errorBuilder: (context, error, stackTrace) => Icon(
@@ -371,10 +369,7 @@ class _AttackPanel extends StatelessWidget {
       );
     } else if (d == null) {
       content = const Center(
-        child: SizedBox.square(
-          dimension: 18,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
+        child: SpinningPokeball(size: 20),
       );
     } else if (d.attacks.isEmpty) {
       content = Center(

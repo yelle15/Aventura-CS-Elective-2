@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
   AppColors._();
@@ -29,8 +30,14 @@ class AppTheme {
       tertiary: AppColors.yellow,
     );
 
+    final pokemonFont = GoogleFonts.pixelifySans();
+
     return ThemeData(
       colorScheme: scheme,
+      fontFamily: pokemonFont.fontFamily,
+      textTheme: GoogleFonts.pixelifySansTextTheme(
+        ThemeData(brightness: brightness).textTheme,
+      ),
       scaffoldBackgroundColor: Colors.transparent,
       appBarTheme: AppBarTheme(
         backgroundColor: isDark ? const Color(0xFF141E38) : AppColors.yellow,

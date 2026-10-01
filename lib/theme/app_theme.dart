@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Colors from the Pokémon logo palette, plus Pokédex red.
 class AppColors {
   AppColors._();
 
@@ -32,7 +31,6 @@ class AppTheme {
 
     return ThemeData(
       colorScheme: scheme,
-      // The gradient behind the grid shows through.
       scaffoldBackgroundColor: Colors.transparent,
       appBarTheme: AppBarTheme(
         backgroundColor: isDark ? const Color(0xFF141E38) : AppColors.yellow,
@@ -40,7 +38,6 @@ class AppTheme {
         centerTitle: true,
         elevation: 4,
         shadowColor: const Color(0x66000000),
-        // Keeps the app bar from changing tint when the grid scrolls under it.
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 4,
       ),
@@ -56,7 +53,6 @@ class AppTheme {
     );
   }
 
-  /// Page background: the logo palette as a vertical gradient.
   static LinearGradient backgroundFor(Brightness brightness) {
     if (brightness == Brightness.dark) {
       return const LinearGradient(

@@ -6,7 +6,6 @@ import 'package:http/http.dart' as http;
 import '../models/pokemon.dart';
 import '../models/pokemon_details.dart';
 
-/// Error with a message that is safe to show on screen.
 class PokemonServiceException implements Exception {
   const PokemonServiceException(this.message);
 
@@ -16,11 +15,6 @@ class PokemonServiceException implements Exception {
   String toString() => message;
 }
 
-/// Handles all calls to the PokéAPI.
-///
-/// Everything here returns a [Future] rather than a [Stream]. Each request
-/// is made once and comes back as one complete response. Nothing about it
-/// changes over time, so there is exactly one result per request.
 class PokemonService {
   PokemonService({http.Client? client}) : _client = client ?? http.Client();
 
@@ -29,14 +23,10 @@ class PokemonService {
 
   final http.Client _client;
 
-  // Caches hold the Future itself, so two cards asking for the same move
-  // (e.g. Tackle) share one request instead of firing two.
   final Map<int, Future<PokemonDetails>> _detailsCache = {};
   final Map<String, Future<TypeMatchups>> _typeCache = {};
   final Map<String, Future<PokemonAttack>> _moveCache = {};
   final Map<String, Future<List<List<String>>>> _chainCache = {};
-
-  // ---------------------------------------------------------------- list
 
   Future<List<Pokemon>> fetchPokemon({int limit = 30}) async {
     final uri = Uri.parse('$_apiRoot/pokemon').replace(
@@ -63,17 +53,10 @@ class PokemonService {
     }
   }
 
-  // ------------------------------------------------------------- details
-
-  /// Card details for one Pokémon. Cached, so calling it again for the same
-  /// ID returns the same Future. Failed requests are dropped from the
-  /// cache, so "Retry" can try again.
   Future<PokemonDetails> fetchDetails(int id) {
     return _cached(_detailsCache, id, () => _loadDetails(id));
   }
 
-  /// Returns the cached Future for [key], or starts [load] and caches it.
-  /// A Future that fails is removed, so the next call tries again.
   static Future<T> _cached<K, T>(
     Map<K, Future<T>> cache,
     K key,
@@ -87,8 +70,6 @@ class PokemonService {
   }
 
   Future<PokemonDetails> _loadDetails(int id) async {
-    // Independent requests run at the same time (Future.wait),
-    // not one after another.
     final responses = await Future.wait([
       _getJson(Uri.parse('$_apiRoot/pokemon/$id')),
       _getJson(Uri.parse('$_apiRoot/pokemon-species/$id')),
@@ -119,8 +100,6 @@ class PokemonService {
       final speciesName = speciesJson['name'] as String;
       final chainUrl = speciesJson['evolution_chain']?['url'] as String?;
 
-      // These depend on the types, moves and species above, so they wait
-      // for the first round. They are independent of each other, though.
       final second = await Future.wait<Object>([
         _fetchTypeMatchups(types.first),
         Future.wait(candidates.map(_fetchMove)),
@@ -171,7 +150,6 @@ class PokemonService {
     }
   }
 
-  /// Every Pokémon in one line shares the same chain, so it is cached by URL.
   Future<List<List<String>>> _fetchEvolutionChain(String url) {
     return _cached(_chainCache, url, () async {
       final json = await _getJson(Uri.parse(url));
@@ -190,7 +168,6 @@ class PokemonService {
     });
   }
 
-  /// "generation-iv" -> 4
   static int _generationNumber(String name) {
     const roman = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix'];
     return roman.indexOf(name.split('-').last) + 1;
@@ -228,8 +205,6 @@ class PokemonService {
     });
   }
 
-  /// Up to 6 level-up moves spread from early to late, so the card can
-  /// pick a weak opening attack and a stronger one.
   static List<String> _candidateMoves(List moves) {
     final levels = <String, int>{};
     for (final m in moves) {
@@ -250,8 +225,6 @@ class PokemonService {
     return {for (var i = 0; i < 6; i++) sorted[(i * step).round()]}.toList();
   }
 
-  /// Like a real card: the weakest damaging move first, the strongest
-  /// second. Status moves are only used if there aren't enough damaging ones.
   static List<PokemonAttack> _chooseAttacks(List<PokemonAttack> moves) {
     final damaging = moves.where((m) => (m.power ?? 0) > 0).toList()
       ..sort((a, b) => a.power!.compareTo(b.power!));
@@ -273,11 +246,8 @@ class PokemonService {
     return null;
   }
 
-  /// Pokédex text has line breaks and form-feeds from the games.
   static String _cleanText(String text) =>
       text.replaceAll(RegExp(r'[\n\f\r]+'), ' ').replaceAll('  ', ' ').trim();
-
-  // ------------------------------------------------------------ helpers
 
   Future<Map<String, dynamic>> _getJson(Uri uri) async {
     try {
@@ -309,6 +279,5 @@ class PokemonService {
     }
   }
 
-  /// Closes the underlying HTTP client. Call this from `dispose()`.
   void dispose() => _client.close();
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Shown while the Future is still waiting.
 class LoadingView extends StatelessWidget {
   const LoadingView({super.key, this.message = 'Catching Pokémon...'});
 
@@ -26,7 +25,6 @@ class LoadingView extends StatelessWidget {
   }
 }
 
-/// Shown when the Future completes with an error.
 class ErrorView extends StatelessWidget {
   const ErrorView({super.key, required this.message, required this.onRetry});
 
@@ -44,7 +42,6 @@ class ErrorView extends StatelessWidget {
   }
 }
 
-/// Shown when the Future completes with an empty list.
 class EmptyView extends StatelessWidget {
   const EmptyView({super.key, required this.onRetry});
 
@@ -61,7 +58,6 @@ class EmptyView extends StatelessWidget {
   }
 }
 
-/// Shown when the search or filters match nothing.
 class NoMatchesView extends StatelessWidget {
   const NoMatchesView({super.key, required this.onClear});
 

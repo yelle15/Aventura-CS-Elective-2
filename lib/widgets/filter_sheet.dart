@@ -4,11 +4,6 @@ import '../models/pokemon.dart';
 import '../models/pokemon_details.dart';
 import '../models/pokemon_filter.dart';
 
-/// Bottom sheet with the extra filters. The options (generations,
-/// abilities, height and weight ranges) come from the loaded Pokémon,
-/// so it waits for every Pokémon's details first.
-///
-/// Closes with the new [PokemonFilter], or null if dismissed.
 class FilterSheet extends StatefulWidget {
   const FilterSheet({super.key, required this.initial, required this.allDetails});
 
@@ -138,7 +133,6 @@ class _FilterSheetState extends State<FilterSheet> {
         ),
         const _Heading('Ability'),
         DropdownButtonFormField<String?>(
-          // Rebuilds the field when "Clear all" resets the value.
           key: ValueKey(_filter.ability),
           initialValue: _filter.ability,
           isExpanded: true,
@@ -208,7 +202,6 @@ class _FilterSheetState extends State<FilterSheet> {
           min: lo,
           max: hi,
           onChanged: (v) => setState(() {
-            // At the full range, the filter is off (null).
             _filter = onChanged(
               v.start <= lo ? null : v.start,
               v.end >= hi ? null : v.end,

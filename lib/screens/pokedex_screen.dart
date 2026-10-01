@@ -13,10 +13,7 @@ import '../widgets/state_views.dart';
 class PokedexScreen extends StatefulWidget {
   const PokedexScreen({super.key, this.service, this.onToggleTheme});
 
-  /// Optional, so tests can pass in a service with a fake HTTP client.
   final PokemonService? service;
-
-  /// Switches light/dark. Given the brightness currently on screen.
   final void Function(Brightness current)? onToggleTheme;
 
   @override
@@ -30,15 +27,8 @@ class _PokedexScreenState extends State<PokedexScreen> {
   late final bool _ownsService;
   final TextEditingController _searchController = TextEditingController();
 
-  // Created in initState, NOT in build(). If it were created in build(),
-  // every rebuild would fire a new request and the grid would flash back
-  // to the loading spinner. Not `final`, because "Try again" replaces it.
   late Future<List<Pokemon>> _pokemonFuture;
-
-  /// Details for every Pokémon, needed by the type chips and filter sheet.
-  /// Only started the first time a filter needs it, then reused.
   Future<Map<int, PokemonDetails?>>? _allDetailsFuture;
-
   PokemonFilter _filter = const PokemonFilter();
 
   @override
@@ -56,7 +46,6 @@ class _PokedexScreenState extends State<PokedexScreen> {
     super.dispose();
   }
 
-  /// Used by the "Try again" button and by pull-to-refresh.
   Future<void> _reload() async {
     final future = _service.fetchPokemon(limit: _limit);
     setState(() {
@@ -65,14 +54,9 @@ class _PokedexScreenState extends State<PokedexScreen> {
     });
     try {
       await future;
-    } catch (_) {
-      // The FutureBuilder below already shows the error.
-    }
+    } catch (_) {}
   }
 
-  /// Loads every Pokémon's details at once. The service caches them, so
-  /// cards that already loaded don't cause a second request. A Pokémon
-  /// whose details fail is kept as null instead of failing the whole map.
   Future<Map<int, PokemonDetails?>> _allDetails(List<Pokemon> pokemon) {
     return _allDetailsFuture ??= () async {
       final results = await Future.wait(
@@ -110,7 +94,6 @@ class _PokedexScreenState extends State<PokedexScreen> {
         ),
       ),
     );
-    // The screen may have closed while the sheet was open.
     if (!mounted || result == null) return;
     _setFilter(result);
   }
@@ -155,12 +138,10 @@ class _PokedexScreenState extends State<PokedexScreen> {
     return FutureBuilder<List<Pokemon>>(
       future: _pokemonFuture,
       builder: (context, snapshot) {
-        // 1. Loading
         if (snapshot.connectionState != ConnectionState.done) {
           return const LoadingView();
         }
 
-        // 2. Error
         if (snapshot.hasError) {
           final error = snapshot.error;
           return ErrorView(
@@ -171,13 +152,11 @@ class _PokedexScreenState extends State<PokedexScreen> {
           );
         }
 
-        // 3. Empty
         final pokemon = snapshot.data ?? const <Pokemon>[];
         if (pokemon.isEmpty) {
           return EmptyView(onRetry: _reload);
         }
 
-        // 4. Data: search/filter bar above the grid
         return Column(
           children: [
             SearchFilterBar(
@@ -194,12 +173,10 @@ class _PokedexScreenState extends State<PokedexScreen> {
   }
 
   Widget _buildResults(List<Pokemon> pokemon) {
-    // Name/number search only needs the list we already have.
     if (!_filter.needsDetails) {
       return _grid(pokemon.where((p) => _filter.matches(p, null)).toList());
     }
 
-    // Type, generation, stage, ... need every Pokémon's details.
     return FutureBuilder<Map<int, PokemonDetails?>>(
       future: _allDetails(pokemon),
       builder: (context, snapshot) {

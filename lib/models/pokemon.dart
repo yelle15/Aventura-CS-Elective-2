@@ -1,8 +1,3 @@
-/// A single Pokémon as shown in the Pokédex grid.
-///
-/// The list endpoint (`/api/v2/pokemon`) only gives us a `name` and a `url`
-/// for each Pokémon. The ID is the last part of that URL, and the artwork
-/// URL can be built from the ID, so one request is enough for the whole grid.
 class Pokemon {
   const Pokemon({
     required this.id,
@@ -26,12 +21,10 @@ class Pokemon {
     return Pokemon(id: id, name: name, imageUrl: artworkUrlFor(id));
   }
 
-  /// Official artwork hosted in the PokéAPI sprites repository.
   static String artworkUrlFor(int id) =>
       'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/'
       'pokemon/other/official-artwork/$id.png';
 
-  /// "https://pokeapi.co/api/v2/pokemon/25/" -> 25
   static int _idFromUrl(String url) {
     final segments =
         Uri.parse(url).pathSegments.where((s) => s.isNotEmpty).toList();
@@ -42,14 +35,11 @@ class Pokemon {
     return id;
   }
 
-  /// "nidoran-f" -> "Nidoran F"
   String get displayName => prettify(name);
 
-  /// 7 -> "#007"
   String get formattedId => '#${id.toString().padLeft(3, '0')}';
 }
 
-/// API names to display text: "thunder-shock" -> "Thunder Shock".
 String prettify(String apiName) => apiName
     .split('-')
     .where((part) => part.isNotEmpty)

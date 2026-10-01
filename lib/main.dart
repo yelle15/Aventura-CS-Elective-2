@@ -15,7 +15,6 @@ class PokedexApp extends StatefulWidget {
 }
 
 class _PokedexAppState extends State<PokedexApp> {
-  // Starts by following the phone's setting; the app bar button overrides it.
   ThemeMode _themeMode = ThemeMode.system;
 
   void _toggleTheme(Brightness current) {

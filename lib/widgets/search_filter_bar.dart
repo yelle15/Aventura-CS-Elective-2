@@ -4,7 +4,6 @@ import '../models/pokemon.dart';
 import '../models/pokemon_filter.dart';
 import 'card_palette.dart';
 
-/// Search field, filter button, and a scrollable row of type chips.
 class SearchFilterBar extends StatelessWidget {
   const SearchFilterBar({
     super.key,

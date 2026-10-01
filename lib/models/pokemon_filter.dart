@@ -3,7 +3,6 @@ import 'pokemon_details.dart';
 
 enum Rarity { any, legendary, mythical, regular }
 
-/// Everything the user picked in the search bar, type chips and filter sheet.
 class PokemonFilter {
   const PokemonFilter({
     this.query = '',
@@ -29,8 +28,6 @@ class PokemonFilter {
   final Rarity rarity;
   final String? ability;
 
-  /// Name/number search works with just the list. Every other filter
-  /// needs each Pokémon's details to be loaded first.
   bool get needsDetails =>
       type != null ||
       generation != null ||
@@ -42,7 +39,6 @@ class PokemonFilter {
       rarity != Rarity.any ||
       ability != null;
 
-  /// Number of filters set in the filter sheet (for the badge).
   int get sheetFilterCount => [
         generation != null,
         stage != null,
@@ -88,7 +84,6 @@ class PokemonFilter {
 
   static const Object _unset = Object();
 
-  /// Pass `null` to clear a filter, leave it out to keep it.
   PokemonFilter copyWith({
     String? query,
     Object? type = _unset,
@@ -118,6 +113,5 @@ class PokemonFilter {
     );
   }
 
-  /// Keeps the search text and type chip, clears the sheet filters.
   PokemonFilter clearSheetFilters() => PokemonFilter(query: query, type: type);
 }

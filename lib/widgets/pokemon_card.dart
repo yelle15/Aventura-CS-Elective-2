@@ -5,18 +5,12 @@ import '../models/pokemon_details.dart';
 import '../services/pokemon_service.dart';
 import 'card_palette.dart';
 
-/// One tile in the grid, styled like a Pokémon trading card.
-///
-/// The ID, name and image come from the list request and show right away.
-/// The rest of the card (HP, attacks, weakness, ...) loads in its own
-/// Future, so each card fills in as soon as its data arrives.
 class PokemonCard extends StatefulWidget {
   const PokemonCard({super.key, required this.pokemon, required this.service});
 
   final Pokemon pokemon;
   final PokemonService service;
 
-  /// The card is drawn at this size, then scaled to fit the grid cell.
   static const Size designSize = Size(250, 350);
 
   @override
@@ -84,7 +78,6 @@ class _CardFace extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final baseTint = CardPalette.forSpecies(details?.colorName);
 
-    // In dark mode, mute and darken the species tint so it harmonizes with the dark background
     final tint = isDark
         ? Color.lerp(baseTint, const Color(0xFF162032), 0.45)!
         : baseTint;
@@ -142,8 +135,6 @@ class _CardFace extends StatelessWidget {
     );
   }
 }
-
-// ------------------------------------------------------------------ header
 
 class _Header extends StatelessWidget {
   const _Header({required this.pokemon, required this.details});
@@ -239,8 +230,6 @@ class _Header extends StatelessWidget {
     );
   }
 }
-
-// --------------------------------------------------------------------- art
 
 class _ArtWindow extends StatelessWidget {
   const _ArtWindow({required this.pokemon, required this.tint});
@@ -343,8 +332,6 @@ class _InfoStrip extends StatelessWidget {
   }
 }
 
-// ----------------------------------------------------------------- attacks
-
 class _AttackPanel extends StatelessWidget {
   const _AttackPanel({
     required this.details,
@@ -446,7 +433,6 @@ class _AttackRow extends StatelessWidget {
       children: [
         Row(
           children: [
-            // First energy is the move's type, the rest are colorless.
             for (var i = 0; i < attack.energyCost; i++)
               Padding(
                 padding: const EdgeInsets.only(right: 2),
@@ -494,8 +480,6 @@ class _AttackRow extends StatelessWidget {
     );
   }
 }
-
-// ------------------------------------------------------------------ bottom
 
 class _MatchupStrip extends StatelessWidget {
   const _MatchupStrip({required this.details});

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Colors and icons used by the trading-card design.
 class CardPalette {
   CardPalette._();
 
@@ -9,8 +8,6 @@ class CardPalette {
   static const Color silver = Color(0xFFE4E7EC);
   static const Color loading = Color(0xFFD9DDE3);
 
-  /// The PokéAPI gives every species one of ten colors. The card frame
-  /// uses it, so Pikachu is yellow, Charmander red, Squirtle blue, ...
   static const Map<String, Color> _speciesColors = {
     'yellow': Color(0xFFF6D44A),
     'red': Color(0xFFEE7B5E),
@@ -49,7 +46,6 @@ class CardPalette {
     'colorless': Color(0xFFC9CDD4),
   };
 
-  /// The 18 types, in the order the chips show them.
   static const List<String> types = [
     'normal', 'fire', 'water', 'electric', 'grass', 'ice',
     'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug',
@@ -84,7 +80,6 @@ class CardPalette {
       _typeIcons[type] ?? Icons.circle_outlined;
 }
 
-/// Round energy symbol, like the ones on real cards.
 class EnergyIcon extends StatelessWidget {
   const EnergyIcon({super.key, required this.type, this.size = 16});
 

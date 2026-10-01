@@ -1,17 +1,34 @@
-# my_flutter_application
+# Pokédex List (Dart Async Activity)
 
-A new Flutter project.
+Fetches the first 30 Pokémon from the [PokéAPI](https://pokeapi.co/api/v2/pokemon)
+and shows them in a scrollable grid (ID, image, name).
 
-## Getting Started
+## Folder structure
 
-This project is a starting point for a Flutter application.
+```
+lib/
+├── main.dart                     # App entry point
+├── models/
+│   ├── pokemon.dart              # Pokemon model + fromJson
+│   ├── pokemon_details.dart      # HP, stats, attacks, abilities, evolution...
+│   └── pokemon_filter.dart       # Search + filter state and matching
+├── services/
+│   └── pokemon_service.dart      # PokéAPI call (returns a Future)
+├── screens/
+│   └── pokedex_screen.dart       # Page with the FutureBuilder
+└── widgets/
+    ├── card_palette.dart         # Card colors, type colors, energy icons
+    ├── pokemon_card.dart         # One grid tile, styled like a TCG card
+    ├── filter_sheet.dart         # Bottom sheet with extra filters
+    ├── pokemon_grid.dart         # Scrollable grid
+    ├── search_filter_bar.dart    # Search field + type chips
+    └── state_views.dart          # Loading / error / empty views
+```
 
-A few resources to get you started if this is your first Flutter project:
+## Run
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```
+flutter pub get
+flutter run
+flutter test
+```

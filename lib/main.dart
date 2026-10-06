@@ -1,38 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import 'screens/pokedex_screen.dart';
+import 'providers/pokedex_provider.dart';
+import 'providers/theme_provider.dart';
+import 'screens/pokedex_grid_screen.dart';
+import 'services/pokemon_service.dart';
 import 'theme/app_theme.dart';
 
 void main() {
   runApp(const PokedexApp());
 }
 
-class PokedexApp extends StatefulWidget {
-  const PokedexApp({super.key});
+class PokedexApp extends StatelessWidget {
+  const PokedexApp({super.key, this.service});
 
-  @override
-  State<PokedexApp> createState() => _PokedexAppState();
-}
-
-class _PokedexAppState extends State<PokedexApp> {
-  ThemeMode _themeMode = ThemeMode.system;
-
-  void _toggleTheme(Brightness current) {
-    setState(() {
-      _themeMode =
-          current == Brightness.dark ? ThemeMode.light : ThemeMode.dark;
-    });
-  }
+  final PokemonService? service;
 
   @override
   Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => PokedexProvider(service: service)..fetchPokemon(),
+        ),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+      ],
+      child: const _PokedexMaterialApp(),
+    );
+  }
+}
+
+class _PokedexMaterialApp extends StatelessWidget {
+  const _PokedexMaterialApp();
+
+  @override
+  Widget build(BuildContext context) {
+    final themeMode = context.watch<ThemeProvider>().mode;
+
     return MaterialApp(
       title: 'Pokédex',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      themeMode: _themeMode,
-      home: PokedexScreen(onToggleTheme: _toggleTheme),
+      themeMode: themeMode,
+      home: const PokedexGridScreen(),
     );
   }
 }

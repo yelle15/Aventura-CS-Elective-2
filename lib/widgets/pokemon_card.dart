@@ -1,65 +1,62 @@
 import 'package:flutter/material.dart';
 
+import 'package:provider/provider.dart';
+
 import '../models/pokemon.dart';
 import '../models/pokemon_details.dart';
-import '../services/pokemon_service.dart';
+import '../providers/pokedex_provider.dart';
+import '../screens/pokemon_detail_screen.dart';
 import 'card_palette.dart';
 import 'state_views.dart';
 
-class PokemonCard extends StatefulWidget {
-  const PokemonCard({super.key, required this.pokemon, required this.service});
+class PokemonCard extends StatelessWidget {
+  const PokemonCard({super.key, required this.pokemon});
 
   final Pokemon pokemon;
-  final PokemonService service;
 
   static const Size designSize = Size(250, 350);
 
-  @override
-  State<PokemonCard> createState() => _PokemonCardState();
-}
-
-class _PokemonCardState extends State<PokemonCard> {
-  late Future<PokemonDetails> _details;
-
-  @override
-  void initState() {
-    super.initState();
-    _details = widget.service.fetchDetails(widget.pokemon.id);
-  }
-
-  @override
-  void didUpdateWidget(PokemonCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.pokemon.id != widget.pokemon.id) {
-      _details = widget.service.fetchDetails(widget.pokemon.id);
-    }
-  }
-
-  void _retry() {
-    setState(() => _details = widget.service.fetchDetails(widget.pokemon.id));
+  void _openDetails(BuildContext context) {
+    context.read<PokedexProvider>().selectPokemon(pokemon);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const PokemonDetailScreen()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return FittedBox(
-      child: SizedBox.fromSize(
-        size: PokemonCard.designSize,
-        child: FutureBuilder<PokemonDetails>(
-          future: _details,
-          builder: (context, snapshot) {
-            final done = snapshot.connectionState == ConnectionState.done;
-            return _CardFace(
-              pokemon: widget.pokemon,
-              details: done ? snapshot.data : null,
-              failed: done && snapshot.hasError,
-              onRetry: _retry,
-            );
-          },
+    final (details, failed) =
+        context.select<PokedexProvider, (PokemonDetails?, bool)>(
+      (p) => (p.detailsFor(pokemon.id), p.detailsFailed(pokemon.id)),
+    );
+
+    return Semantics(
+      button: true,
+      label: 'Open ${pokemon.displayName}',
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _openDetails(context),
+          child: FittedBox(
+            child: SizedBox.fromSize(
+              size: designSize,
+              child: _CardFace(
+                pokemon: pokemon,
+                details: details,
+                failed: failed,
+                onRetry: () =>
+                    context.read<PokedexProvider>().retryDetails(pokemon.id),
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 }
+
+String pokemonHeroTag(int id) => 'pokemon-art-$id';
 
 class _CardFace extends StatelessWidget {
   const _CardFace({
@@ -265,20 +262,23 @@ class _ArtWindow extends StatelessWidget {
         ),
       ),
       padding: const EdgeInsets.all(6),
-      child: Image.network(
-        pokemon.imageUrl,
-        fit: BoxFit.contain,
-        semanticLabel: pokemon.displayName,
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return const Center(
-            child: SpinningPokeball(size: 24),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) => Icon(
-          Icons.catching_pokemon,
-          size: 48,
-          color: isDark ? const Color(0x33FFFFFF) : const Color(0x55000000),
+      child: Hero(
+        tag: pokemonHeroTag(pokemon.id),
+        child: Image.network(
+          pokemon.imageUrl,
+          fit: BoxFit.contain,
+          semanticLabel: pokemon.displayName,
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) return child;
+            return const Center(
+              child: SpinningPokeball(size: 24),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) => Icon(
+            Icons.catching_pokemon,
+            size: 48,
+            color: isDark ? const Color(0x33FFFFFF) : const Color(0x55000000),
+          ),
         ),
       ),
     );

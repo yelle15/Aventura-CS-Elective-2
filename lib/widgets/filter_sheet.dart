@@ -1,26 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/pokemon.dart';
 import '../models/pokemon_details.dart';
 import '../models/pokemon_filter.dart';
+import '../providers/pokedex_provider.dart';
 import 'state_views.dart';
 
-class FilterSheet extends StatefulWidget {
-  const FilterSheet({super.key, required this.initial, required this.allDetails});
-
-  final PokemonFilter initial;
-  final Future<Map<int, PokemonDetails?>> allDetails;
-
-  @override
-  State<FilterSheet> createState() => _FilterSheetState();
-}
-
-class _FilterSheetState extends State<FilterSheet> {
-  late PokemonFilter _filter = widget.initial;
+class FilterSheet extends StatelessWidget {
+  const FilterSheet({super.key});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pokedex = context.watch<PokedexProvider>();
+    final draft = pokedex.draftFilter;
+
+    final Widget body;
+    if (pokedex.isLoadingDetails) {
+      body = const Center(child: SpinningPokeball(size: 44));
+    } else if (pokedex.loadedDetails.isEmpty) {
+      body = const Center(child: Text('Pokédex data could not be loaded.'));
+    } else {
+      body = _options(context, draft, pokedex.loadedDetails);
+    }
 
     return Column(
       children: [
@@ -32,31 +35,15 @@ class _FilterSheetState extends State<FilterSheet> {
                 child: Text('Filters', style: theme.textTheme.titleLarge),
               ),
               TextButton(
-                onPressed: () =>
-                    setState(() => _filter = _filter.clearSheetFilters()),
+                onPressed: () => context
+                    .read<PokedexProvider>()
+                    .updateDraftFilter((d) => d.clearSheetFilters()),
                 child: const Text('Clear all'),
               ),
             ],
           ),
         ),
-        Expanded(
-          child: FutureBuilder<Map<int, PokemonDetails?>>(
-            future: widget.allDetails,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
-                return const Center(child: SpinningPokeball(size: 44));
-              }
-              final loaded =
-                  (snapshot.data ?? const {}).values.whereType<PokemonDetails>().toList();
-              if (loaded.isEmpty) {
-                return const Center(
-                  child: Text('Pokédex data could not be loaded.'),
-                );
-              }
-              return _options(loaded);
-            },
-          ),
-        ),
+        Expanded(child: body),
         SafeArea(
           top: false,
           child: Padding(
@@ -64,7 +51,10 @@ class _FilterSheetState extends State<FilterSheet> {
             child: SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: () => Navigator.pop(context, _filter),
+                onPressed: () {
+                  context.read<PokedexProvider>().applyDraftFilter();
+                  Navigator.pop(context);
+                },
                 child: const Text('Show results'),
               ),
             ),
@@ -74,13 +64,16 @@ class _FilterSheetState extends State<FilterSheet> {
     );
   }
 
-  Widget _options(List<PokemonDetails> loaded) {
+  Widget _options(
+    BuildContext context,
+    PokemonFilter draft,
+    List<PokemonDetails> loaded,
+  ) {
     final generations = {for (final d in loaded) d.generation}.toList()..sort();
     final abilities = {
       for (final d in loaded)
         for (final a in d.abilities) a.name,
-    }.toList()
-      ..sort();
+    }.toList()..sort();
     final heights = loaded.map((d) => d.heightM).toList()..sort();
     final weights = loaded.map((d) => d.weightKg).toList()..sort();
 
@@ -91,13 +84,18 @@ class _FilterSheetState extends State<FilterSheet> {
         Wrap(
           spacing: 6,
           children: [
-            _choice('Any', _filter.generation == null,
-                () => _filter.copyWith(generation: null)),
+            _choice(
+              context,
+              'Any',
+              draft.generation == null,
+              () => draft.copyWith(generation: null),
+            ),
             for (final g in generations)
               _choice(
+                context,
                 PokemonDetails.generationLabelFor(g),
-                _filter.generation == g,
-                () => _filter.copyWith(generation: g),
+                draft.generation == g,
+                () => draft.copyWith(generation: g),
               ),
           ],
         ),
@@ -105,13 +103,18 @@ class _FilterSheetState extends State<FilterSheet> {
         Wrap(
           spacing: 6,
           children: [
-            _choice('Any', _filter.stage == null,
-                () => _filter.copyWith(stage: null)),
+            _choice(
+              context,
+              'Any',
+              draft.stage == null,
+              () => draft.copyWith(stage: null),
+            ),
             for (final s in const ['BASIC', 'STAGE 1', 'STAGE 2'])
               _choice(
+                context,
                 prettify(s.toLowerCase().replaceAll(' ', '-')),
-                _filter.stage == s,
-                () => _filter.copyWith(stage: s),
+                draft.stage == s,
+                () => draft.copyWith(stage: s),
               ),
           ],
         ),
@@ -121,21 +124,22 @@ class _FilterSheetState extends State<FilterSheet> {
           children: [
             for (final r in Rarity.values)
               _choice(
+                context,
                 switch (r) {
                   Rarity.any => 'Any',
                   Rarity.legendary => 'Legendary',
                   Rarity.mythical => 'Mythical',
                   Rarity.regular => 'Regular',
                 },
-                _filter.rarity == r,
-                () => _filter.copyWith(rarity: r),
+                draft.rarity == r,
+                () => draft.copyWith(rarity: r),
               ),
           ],
         ),
         const _Heading('Ability'),
         DropdownButtonFormField<String?>(
-          key: ValueKey(_filter.ability),
-          initialValue: _filter.ability,
+          key: ValueKey(draft.ability),
+          initialValue: draft.ability,
           isExpanded: true,
           decoration: const InputDecoration(border: OutlineInputBorder()),
           items: [
@@ -143,43 +147,53 @@ class _FilterSheetState extends State<FilterSheet> {
             for (final a in abilities)
               DropdownMenuItem(value: a, child: Text(prettify(a))),
           ],
-          onChanged: (value) =>
-              setState(() => _filter = _filter.copyWith(ability: value)),
+          onChanged: (value) => context
+              .read<PokedexProvider>()
+              .updateDraftFilter((d) => d.copyWith(ability: value)),
         ),
         _rangeSection(
+          context: context,
           title: 'Height',
           unit: 'm',
           lo: heights.first,
           hi: heights.last,
-          min: _filter.minHeight,
-          max: _filter.maxHeight,
+          min: draft.minHeight,
+          max: draft.maxHeight,
           onChanged: (min, max) =>
-              _filter.copyWith(minHeight: min, maxHeight: max),
+              draft.copyWith(minHeight: min, maxHeight: max),
         ),
         _rangeSection(
+          context: context,
           title: 'Weight',
           unit: 'kg',
           lo: weights.first,
           hi: weights.last,
-          min: _filter.minWeight,
-          max: _filter.maxWeight,
+          min: draft.minWeight,
+          max: draft.maxWeight,
           onChanged: (min, max) =>
-              _filter.copyWith(minWeight: min, maxWeight: max),
+              draft.copyWith(minWeight: min, maxWeight: max),
         ),
         const SizedBox(height: 12),
       ],
     );
   }
 
-  Widget _choice(String label, bool selected, PokemonFilter Function() next) {
+  Widget _choice(
+    BuildContext context,
+    String label,
+    bool selected,
+    PokemonFilter Function() next,
+  ) {
     return ChoiceChip(
       label: Text(label),
       selected: selected,
-      onSelected: (_) => setState(() => _filter = next()),
+      onSelected: (_) =>
+          context.read<PokedexProvider>().updateDraftFilter((_) => next()),
     );
   }
 
   Widget _rangeSection({
+    required BuildContext context,
     required String title,
     required String unit,
     required double lo,
@@ -202,12 +216,12 @@ class _FilterSheetState extends State<FilterSheet> {
           values: values,
           min: lo,
           max: hi,
-          onChanged: (v) => setState(() {
-            _filter = onChanged(
+          onChanged: (v) => context.read<PokedexProvider>().updateDraftFilter(
+            (_) => onChanged(
               v.start <= lo ? null : v.start,
               v.end >= hi ? null : v.end,
-            );
-          }),
+            ),
+          ),
         ),
       ],
     );
@@ -225,10 +239,9 @@ class _Heading extends StatelessWidget {
       padding: const EdgeInsets.only(top: 16, bottom: 6),
       child: Text(
         text,
-        style: Theme.of(context)
-            .textTheme
-            .titleSmall
-            ?.copyWith(fontWeight: FontWeight.w700),
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
       ),
     );
   }

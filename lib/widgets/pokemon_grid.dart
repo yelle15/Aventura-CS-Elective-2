@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import '../models/pokemon.dart';
-import '../services/pokemon_service.dart';
+import '../providers/pokedex_provider.dart';
 import 'pokemon_card.dart';
 
 class PokemonGrid extends StatelessWidget {
-  const PokemonGrid({super.key, required this.pokemon, required this.service});
-
-  final List<Pokemon> pokemon;
-  final PokemonService service;
+  const PokemonGrid({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final pokemon = context.watch<PokedexProvider>().visiblePokemon;
+
     return GridView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(12),
@@ -25,7 +24,6 @@ class PokemonGrid extends StatelessWidget {
       itemBuilder: (context, index) => PokemonCard(
         key: ValueKey(pokemon[index].id),
         pokemon: pokemon[index],
-        service: service,
       ),
     );
   }

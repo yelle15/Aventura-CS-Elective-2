@@ -1,26 +1,60 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/pokemon.dart';
-import '../models/pokemon_filter.dart';
+import '../providers/pokedex_provider.dart';
 import 'card_palette.dart';
+import 'filter_sheet.dart';
 
-class SearchFilterBar extends StatelessWidget {
-  const SearchFilterBar({
-    super.key,
-    required this.controller,
-    required this.filter,
-    required this.onChanged,
-    required this.onOpenFilters,
-  });
+class SearchFilterBar extends StatefulWidget {
+  const SearchFilterBar({super.key});
 
-  final TextEditingController controller;
-  final PokemonFilter filter;
-  final ValueChanged<PokemonFilter> onChanged;
-  final VoidCallback onOpenFilters;
+  @override
+  State<SearchFilterBar> createState() => _SearchFilterBarState();
+}
+
+class _SearchFilterBarState extends State<SearchFilterBar> {
+  late final PokedexProvider _pokedex;
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _pokedex = context.read<PokedexProvider>();
+    _controller = TextEditingController(text: _pokedex.filter.query);
+    _pokedex.addListener(_syncQuery);
+  }
+
+  void _syncQuery() {
+    final query = _pokedex.filter.query;
+    if (_controller.text != query) _controller.text = query;
+  }
+
+  @override
+  void dispose() {
+    _pokedex.removeListener(_syncQuery);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _openFilterSheet() {
+    context.read<PokedexProvider>().startFilterDraft();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => const FractionallySizedBox(
+        heightFactor: 0.8,
+        child: FilterSheet(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final filter = context.watch<PokedexProvider>().filter;
     final count = filter.sheetFilterCount;
 
     return Padding(
@@ -31,9 +65,11 @@ class SearchFilterBar extends StatelessWidget {
             children: [
               Expanded(
                 child: TextField(
-                  controller: controller,
+                  controller: _controller,
                   textInputAction: TextInputAction.search,
-                  onChanged: (text) => onChanged(filter.copyWith(query: text)),
+                  onChanged: (text) => context
+                      .read<PokedexProvider>()
+                      .updateFilter((f) => f.copyWith(query: text)),
                   decoration: InputDecoration(
                     hintText: 'Search Pokémon by name or number...',
                     prefixIcon: const Icon(Icons.search_rounded),
@@ -42,10 +78,9 @@ class SearchFilterBar extends StatelessWidget {
                         : IconButton(
                             tooltip: 'Clear search',
                             icon: const Icon(Icons.close_rounded),
-                            onPressed: () {
-                              controller.clear();
-                              onChanged(filter.copyWith(query: ''));
-                            },
+                            onPressed: () => context
+                                .read<PokedexProvider>()
+                                .updateFilter((f) => f.copyWith(query: '')),
                           ),
                     filled: true,
                     fillColor: scheme.surface,
@@ -63,7 +98,7 @@ class SearchFilterBar extends StatelessWidget {
                 label: Text('$count'),
                 child: IconButton.filled(
                   tooltip: 'More filters',
-                  onPressed: onOpenFilters,
+                  onPressed: _openFilterSheet,
                   icon: const Icon(Icons.tune_rounded),
                 ),
               ),
@@ -78,16 +113,19 @@ class SearchFilterBar extends StatelessWidget {
                 _TypeChip(
                   label: 'All',
                   selected: filter.type == null,
-                  onTap: () => onChanged(filter.copyWith(type: null)),
+                  onTap: () => context
+                      .read<PokedexProvider>()
+                      .updateFilter((f) => f.copyWith(type: null)),
                 ),
                 for (final type in CardPalette.types)
                   _TypeChip(
                     label: prettify(type),
                     type: type,
                     selected: filter.type == type,
-                    onTap: () => onChanged(
-                      filter.copyWith(type: filter.type == type ? null : type),
-                    ),
+                    onTap: () => context.read<PokedexProvider>().updateFilter(
+                          (f) =>
+                              f.copyWith(type: f.type == type ? null : type),
+                        ),
                   ),
               ],
             ),

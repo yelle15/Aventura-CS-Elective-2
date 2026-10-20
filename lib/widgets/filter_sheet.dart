@@ -1,28 +1,29 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/pokemon.dart';
 import '../models/pokemon_details.dart';
 import '../models/pokemon_filter.dart';
-import '../providers/pokedex_provider.dart';
+import '../providers/filter_provider.dart';
+import '../providers/pokemon_details_provider.dart';
 import 'state_views.dart';
 
-class FilterSheet extends StatelessWidget {
+class FilterSheet extends ConsumerWidget {
   const FilterSheet({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final pokedex = context.watch<PokedexProvider>();
-    final draft = pokedex.draftFilter;
+    final draft = ref.watch(filterDraftProvider);
+    final details = ref.watch(pokemonDetailsProvider);
 
     final Widget body;
-    if (pokedex.isLoadingDetails) {
+    if (details.isLoading) {
       body = const Center(child: SpinningPokeball(size: 44));
-    } else if (pokedex.loadedDetails.isEmpty) {
+    } else if (details.loaded.isEmpty) {
       body = const Center(child: Text('Pokédex data could not be loaded.'));
     } else {
-      body = _options(context, draft, pokedex.loadedDetails);
+      body = _options(ref, draft, details.all);
     }
 
     return Column(
@@ -35,9 +36,9 @@ class FilterSheet extends StatelessWidget {
                 child: Text('Filters', style: theme.textTheme.titleLarge),
               ),
               TextButton(
-                onPressed: () => context
-                    .read<PokedexProvider>()
-                    .updateDraftFilter((d) => d.clearSheetFilters()),
+                onPressed: () => ref
+                    .read(filterDraftProvider.notifier)
+                    .edit((d) => d.clearSheetFilters()),
                 child: const Text('Clear all'),
               ),
             ],
@@ -52,7 +53,7 @@ class FilterSheet extends StatelessWidget {
               width: double.infinity,
               child: FilledButton(
                 onPressed: () {
-                  context.read<PokedexProvider>().applyDraftFilter();
+                  ref.read(filterDraftProvider.notifier).apply();
                   Navigator.pop(context);
                 },
                 child: const Text('Show results'),
@@ -65,7 +66,7 @@ class FilterSheet extends StatelessWidget {
   }
 
   Widget _options(
-    BuildContext context,
+    WidgetRef ref,
     PokemonFilter draft,
     List<PokemonDetails> loaded,
   ) {
@@ -85,14 +86,14 @@ class FilterSheet extends StatelessWidget {
           spacing: 6,
           children: [
             _choice(
-              context,
+              ref,
               'Any',
               draft.generation == null,
               () => draft.copyWith(generation: null),
             ),
             for (final g in generations)
               _choice(
-                context,
+                ref,
                 PokemonDetails.generationLabelFor(g),
                 draft.generation == g,
                 () => draft.copyWith(generation: g),
@@ -104,14 +105,14 @@ class FilterSheet extends StatelessWidget {
           spacing: 6,
           children: [
             _choice(
-              context,
+              ref,
               'Any',
               draft.stage == null,
               () => draft.copyWith(stage: null),
             ),
             for (final s in const ['BASIC', 'STAGE 1', 'STAGE 2'])
               _choice(
-                context,
+                ref,
                 prettify(s.toLowerCase().replaceAll(' ', '-')),
                 draft.stage == s,
                 () => draft.copyWith(stage: s),
@@ -124,7 +125,7 @@ class FilterSheet extends StatelessWidget {
           children: [
             for (final r in Rarity.values)
               _choice(
-                context,
+                ref,
                 switch (r) {
                   Rarity.any => 'Any',
                   Rarity.legendary => 'Legendary',
@@ -147,12 +148,12 @@ class FilterSheet extends StatelessWidget {
             for (final a in abilities)
               DropdownMenuItem(value: a, child: Text(prettify(a))),
           ],
-          onChanged: (value) => context
-              .read<PokedexProvider>()
-              .updateDraftFilter((d) => d.copyWith(ability: value)),
+          onChanged: (value) => ref
+              .read(filterDraftProvider.notifier)
+              .edit((d) => d.copyWith(ability: value)),
         ),
         _rangeSection(
-          context: context,
+          ref: ref,
           title: 'Height',
           unit: 'm',
           lo: heights.first,
@@ -163,7 +164,7 @@ class FilterSheet extends StatelessWidget {
               draft.copyWith(minHeight: min, maxHeight: max),
         ),
         _rangeSection(
-          context: context,
+          ref: ref,
           title: 'Weight',
           unit: 'kg',
           lo: weights.first,
@@ -179,7 +180,7 @@ class FilterSheet extends StatelessWidget {
   }
 
   Widget _choice(
-    BuildContext context,
+    WidgetRef ref,
     String label,
     bool selected,
     PokemonFilter Function() next,
@@ -188,12 +189,12 @@ class FilterSheet extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: (_) =>
-          context.read<PokedexProvider>().updateDraftFilter((_) => next()),
+          ref.read(filterDraftProvider.notifier).edit((_) => next()),
     );
   }
 
   Widget _rangeSection({
-    required BuildContext context,
+    required WidgetRef ref,
     required String title,
     required String unit,
     required double lo,
@@ -216,7 +217,7 @@ class FilterSheet extends StatelessWidget {
           values: values,
           min: lo,
           max: hi,
-          onChanged: (v) => context.read<PokedexProvider>().updateDraftFilter(
+          onChanged: (v) => ref.read(filterDraftProvider.notifier).edit(
             (_) => onChanged(
               v.start <= lo ? null : v.start,
               v.end >= hi ? null : v.end,

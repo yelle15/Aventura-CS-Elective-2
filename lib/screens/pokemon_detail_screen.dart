@@ -1,30 +1,60 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/pokemon.dart';
 import '../models/pokemon_details.dart';
-import '../providers/pokedex_provider.dart';
+import '../providers/nickname_provider.dart';
+import '../providers/pokemon_details_provider.dart';
+import '../providers/selected_pokemon_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_bar_actions.dart';
 import '../widgets/card_palette.dart';
+import '../widgets/favorite_heart.dart';
+import '../widgets/favorites_panel.dart';
+import '../widgets/nickname_editor.dart';
 import '../widgets/pokemon_card.dart' show pokemonHeroTag;
 import '../widgets/state_views.dart';
 
-class PokemonDetailScreen extends StatelessWidget {
+void openPokemonDetails(BuildContext context, WidgetRef ref, Pokemon pokemon) {
+  ref.read(selectedPokemonProvider.notifier).select(pokemon);
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(builder: (_) => const PokemonDetailScreen()),
+  );
+}
+
+class PokemonDetailScreen extends ConsumerWidget {
   const PokemonDetailScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final pokemon = context.watch<PokedexProvider>().selectedPokemon;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pokemon = ref.watch(selectedPokemonProvider);
+    final nickname = ref.watch(
+      nicknameProvider.select((n) => pokemon == null ? null : n[pokemon.id]),
+    );
     final brightness = Theme.of(context).brightness;
 
     return Scaffold(
-      appBar: AppBar(title: Text(pokemon?.displayName ?? 'Pokédex')),
+      appBar: AppBar(
+        title: Text(nickname ?? pokemon?.displayName ?? 'Pokédex'),
+        actions: [
+          if (pokemon != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: FavoriteHeart(pokemon: pokemon, size: 20),
+            ),
+          const ThemeButton(),
+        ],
+      ),
       body: DecoratedBox(
         decoration: BoxDecoration(gradient: AppTheme.backgroundFor(brightness)),
-        child: pokemon == null
-            ? const Center(child: Text('No Pokémon selected.'))
-            : const _DetailContent(),
+        child: FavoritesPanel(
+          openDetailsOnTap: false,
+          child: pokemon == null
+              ? const Center(child: Text('No Pokémon selected.'))
+              : const _DetailContent(),
+        ),
       ),
+      floatingActionButton: const FavoritesFab(),
     );
   }
 }
@@ -38,9 +68,11 @@ class _DetailContent extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
           children: const [
             _ArtCard(),
+            SizedBox(height: 12),
+            _NicknameCard(),
             SizedBox(height: 12),
             _InfoSection(),
           ],
@@ -50,14 +82,15 @@ class _DetailContent extends StatelessWidget {
   }
 }
 
-class _ArtCard extends StatelessWidget {
+class _ArtCard extends ConsumerWidget {
   const _ArtCard();
 
   @override
-  Widget build(BuildContext context) {
-    final pokedex = context.watch<PokedexProvider>();
-    final pokemon = pokedex.selectedPokemon!;
-    final details = pokedex.detailsFor(pokemon.id);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pokemon = ref.watch(selectedPokemonProvider)!;
+    final details = ref.watch(
+      pokemonDetailsProvider.select((s) => s.loaded[pokemon.id]),
+    );
     final theme = Theme.of(context);
     final tint = CardPalette.forSpecies(details?.colorName);
 
@@ -142,18 +175,55 @@ class _ArtCard extends StatelessWidget {
   }
 }
 
-class _InfoSection extends StatelessWidget {
+class _NicknameCard extends ConsumerWidget {
+  const _NicknameCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pokemon = ref.watch(selectedPokemonProvider)!;
+    final nickname = ref.watch(
+      nicknameProvider.select((nicknames) => nicknames[pokemon.id]),
+    );
+    final theme = Theme.of(context);
+
+    return Card(
+      child: ListTile(
+        contentPadding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+        leading: const Icon(Icons.badge_outlined),
+        title: Text(
+          nickname == null ? 'No nickname yet' : '“$nickname”',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+            fontStyle: nickname == null ? FontStyle.normal : FontStyle.italic,
+          ),
+        ),
+        subtitle: Text('Original name: ${pokemon.displayName}'),
+        trailing: FilledButton.tonalIcon(
+          onPressed: () => showNicknameEditor(context),
+          icon: Icon(nickname == null ? Icons.add_rounded : Icons.edit_rounded),
+          label: Text(nickname == null ? 'Add' : 'Edit'),
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoSection extends ConsumerWidget {
   const _InfoSection();
 
   @override
-  Widget build(BuildContext context) {
-    final pokedex = context.watch<PokedexProvider>();
-    final id = pokedex.selectedPokemon!.id;
-    final details = pokedex.detailsFor(id);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final id = ref.watch(selectedPokemonProvider)!.id;
+    final details = ref.watch(
+      pokemonDetailsProvider.select((s) => s.loaded[id]),
+    );
+    final failed = ref.watch(
+      pokemonDetailsProvider.select((s) => s.failed.contains(id)),
+    );
 
     if (details != null) return _DetailsCard(details: details);
 
-    if (pokedex.detailsFailed(id)) {
+    if (failed) {
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -163,7 +233,7 @@ class _InfoSection extends StatelessWidget {
               const SizedBox(height: 8),
               FilledButton.icon(
                 onPressed: () =>
-                    context.read<PokedexProvider>().retryDetails(id),
+                    ref.read(pokemonDetailsProvider.notifier).retry(id),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Try again'),
               ),
@@ -210,7 +280,10 @@ class _DetailsCard extends StatelessWidget {
                 _Fact(label: 'Height', value: '${details.heightM} m'),
                 _Fact(label: 'Weight', value: '${details.weightKg} kg'),
                 _Fact(label: 'Gen', value: details.generationLabel),
-                _Fact(label: 'Stage', value: prettify(details.stage.toLowerCase())),
+                _Fact(
+                  label: 'Stage',
+                  value: prettify(details.stage.toLowerCase()),
+                ),
               ],
             ),
             const SizedBox(height: 20),

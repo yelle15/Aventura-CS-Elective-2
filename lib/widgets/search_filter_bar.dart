@@ -1,44 +1,35 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/pokemon.dart';
-import '../providers/pokedex_provider.dart';
+import '../providers/filter_provider.dart';
 import 'card_palette.dart';
 import 'filter_sheet.dart';
 
-class SearchFilterBar extends StatefulWidget {
+class SearchFilterBar extends ConsumerStatefulWidget {
   const SearchFilterBar({super.key});
 
   @override
-  State<SearchFilterBar> createState() => _SearchFilterBarState();
+  ConsumerState<SearchFilterBar> createState() => _SearchFilterBarState();
 }
 
-class _SearchFilterBarState extends State<SearchFilterBar> {
-  late final PokedexProvider _pokedex;
+class _SearchFilterBarState extends ConsumerState<SearchFilterBar> {
   late final TextEditingController _controller;
 
   @override
   void initState() {
     super.initState();
-    _pokedex = context.read<PokedexProvider>();
-    _controller = TextEditingController(text: _pokedex.filter.query);
-    _pokedex.addListener(_syncQuery);
-  }
-
-  void _syncQuery() {
-    final query = _pokedex.filter.query;
-    if (_controller.text != query) _controller.text = query;
+    _controller = TextEditingController(text: ref.read(filterProvider).query);
   }
 
   @override
   void dispose() {
-    _pokedex.removeListener(_syncQuery);
     _controller.dispose();
     super.dispose();
   }
 
   void _openFilterSheet() {
-    context.read<PokedexProvider>().startFilterDraft();
+    ref.read(filterDraftProvider.notifier).start();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -53,8 +44,12 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(filterProvider.select((f) => f.query), (previous, next) {
+      if (_controller.text != next) _controller.text = next;
+    });
+
     final scheme = Theme.of(context).colorScheme;
-    final filter = context.watch<PokedexProvider>().filter;
+    final filter = ref.watch(filterProvider);
     final count = filter.sheetFilterCount;
 
     return Padding(
@@ -67,9 +62,8 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
                 child: TextField(
                   controller: _controller,
                   textInputAction: TextInputAction.search,
-                  onChanged: (text) => context
-                      .read<PokedexProvider>()
-                      .updateFilter((f) => f.copyWith(query: text)),
+                  onChanged: (text) =>
+                      ref.read(filterProvider.notifier).setQuery(text),
                   decoration: InputDecoration(
                     hintText: 'Search Pokémon by name or number...',
                     prefixIcon: const Icon(Icons.search_rounded),
@@ -78,9 +72,8 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
                         : IconButton(
                             tooltip: 'Clear search',
                             icon: const Icon(Icons.close_rounded),
-                            onPressed: () => context
-                                .read<PokedexProvider>()
-                                .updateFilter((f) => f.copyWith(query: '')),
+                            onPressed: () =>
+                                ref.read(filterProvider.notifier).setQuery(''),
                           ),
                     filled: true,
                     fillColor: scheme.surface,
@@ -111,21 +104,18 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
               scrollDirection: Axis.horizontal,
               children: [
                 _TypeChip(
-                  label: 'All',
+                  label: 'All types',
                   selected: filter.type == null,
-                  onTap: () => context
-                      .read<PokedexProvider>()
-                      .updateFilter((f) => f.copyWith(type: null)),
+                  onTap: () => ref.read(filterProvider.notifier).clearType(),
                 ),
                 for (final type in CardPalette.types)
                   _TypeChip(
                     label: prettify(type),
                     type: type,
                     selected: filter.type == type,
-                    onTap: () => context.read<PokedexProvider>().updateFilter(
-                          (f) =>
-                              f.copyWith(type: f.type == type ? null : type),
-                        ),
+                    onTap: () => filter.type == type
+                        ? ref.read(filterProvider.notifier).clearType()
+                        : ref.read(filterProvider.notifier).selectType(type),
                   ),
               ],
             ),

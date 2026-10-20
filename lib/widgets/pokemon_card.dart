@@ -1,52 +1,54 @@
 import 'package:flutter/material.dart';
-
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/pokemon.dart';
 import '../models/pokemon_details.dart';
-import '../providers/pokedex_provider.dart';
+import '../providers/nickname_provider.dart';
+import '../providers/pokemon_details_provider.dart';
 import '../screens/pokemon_detail_screen.dart';
 import 'card_palette.dart';
+import 'favorite_heart.dart';
 import 'state_views.dart';
 
-class PokemonCard extends StatelessWidget {
+class PokemonCard extends ConsumerWidget {
   const PokemonCard({super.key, required this.pokemon});
 
   final Pokemon pokemon;
 
   static const Size designSize = Size(250, 350);
 
-  void _openDetails(BuildContext context) {
-    context.read<PokedexProvider>().selectPokemon(pokemon);
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const PokemonDetailScreen()),
-    );
-  }
-
   @override
-  Widget build(BuildContext context) {
-    final (details, failed) =
-        context.select<PokedexProvider, (PokemonDetails?, bool)>(
-      (p) => (p.detailsFor(pokemon.id), p.detailsFailed(pokemon.id)),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final details = ref.watch(
+      pokemonDetailsProvider.select((s) => s.loaded[pokemon.id]),
+    );
+    final failed = ref.watch(
+      pokemonDetailsProvider.select((s) => s.failed.contains(pokemon.id)),
+    );
+    final nickname = ref.watch(
+      nicknameProvider.select((nicknames) => nicknames[pokemon.id]),
     );
 
     return Semantics(
       button: true,
-      label: 'Open ${pokemon.displayName}',
+      label: nickname == null
+          ? 'Open ${pokemon.displayName}'
+          : 'Open $nickname, ${pokemon.displayName}',
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: () => _openDetails(context),
+          onTap: () => openPokemonDetails(context, ref, pokemon),
           child: FittedBox(
             child: SizedBox.fromSize(
               size: designSize,
               child: _CardFace(
                 pokemon: pokemon,
                 details: details,
+                nickname: nickname,
                 failed: failed,
                 onRetry: () =>
-                    context.read<PokedexProvider>().retryDetails(pokemon.id),
+                    ref.read(pokemonDetailsProvider.notifier).retry(pokemon.id),
               ),
             ),
           ),
@@ -62,12 +64,14 @@ class _CardFace extends StatelessWidget {
   const _CardFace({
     required this.pokemon,
     required this.details,
+    required this.nickname,
     required this.failed,
     required this.onRetry,
   });
 
   final Pokemon pokemon;
   final PokemonDetails? details;
+  final String? nickname;
   final bool failed;
   final VoidCallback onRetry;
 
@@ -111,7 +115,7 @@ class _CardFace extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _Header(pokemon: pokemon, details: details),
+            _Header(pokemon: pokemon, details: details, nickname: nickname),
             const SizedBox(height: 4),
             _ArtWindow(pokemon: pokemon, tint: tint),
             _InfoStrip(pokemon: pokemon, details: details),
@@ -135,10 +139,15 @@ class _CardFace extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.pokemon, required this.details});
+  const _Header({
+    required this.pokemon,
+    required this.details,
+    required this.nickname,
+  });
 
   final Pokemon pokemon;
   final PokemonDetails? details;
+  final String? nickname;
 
   @override
   Widget build(BuildContext context) {
@@ -186,17 +195,32 @@ class _Header extends StatelessWidget {
                     color: isDark ? Colors.white : CardPalette.ink,
                   ),
                 ),
-                Text(
-                  d == null ? ' ' : d.genus.toUpperCase(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 5.5,
-                    letterSpacing: 0.8,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF4A5260),
+                if (nickname case final name?)
+                  Text(
+                    '“$name”',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                      fontStyle: FontStyle.italic,
+                      color: isDark
+                          ? const Color(0xFFFFCB05)
+                          : const Color(0xFF3466AF),
+                    ),
+                  )
+                else
+                  Text(
+                    d == null ? ' ' : d.genus.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 5.5,
+                      letterSpacing: 0.8,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF4A5260),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -262,24 +286,35 @@ class _ArtWindow extends StatelessWidget {
         ),
       ),
       padding: const EdgeInsets.all(6),
-      child: Hero(
-        tag: pokemonHeroTag(pokemon.id),
-        child: Image.network(
-          pokemon.imageUrl,
-          fit: BoxFit.contain,
-          semanticLabel: pokemon.displayName,
-          loadingBuilder: (context, child, progress) {
-            if (progress == null) return child;
-            return const Center(
-              child: SpinningPokeball(size: 24),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) => Icon(
-            Icons.catching_pokemon,
-            size: 48,
-            color: isDark ? const Color(0x33FFFFFF) : const Color(0x55000000),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Hero(
+              tag: pokemonHeroTag(pokemon.id),
+              child: Image.network(
+                pokemon.imageUrl,
+                fit: BoxFit.contain,
+                semanticLabel: pokemon.displayName,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return const Center(
+                    child: SpinningPokeball(size: 24),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) => Icon(
+                  Icons.catching_pokemon,
+                  size: 48,
+                  color: isDark ? const Color(0x33FFFFFF) : const Color(0x55000000),
+                ),
+              ),
+            ),
           ),
-        ),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: FavoriteHeart(pokemon: pokemon, size: 18),
+          ),
+        ],
       ),
     );
   }

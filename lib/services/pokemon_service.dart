@@ -64,7 +64,12 @@ class PokemonService {
   ) {
     return cache.putIfAbsent(key, () {
       final future = load();
-      future.then<void>((_) {}, onError: (Object _) => cache.remove(key));
+      future.then<void>(
+        (_) {},
+        onError: (Object _) {
+          cache.remove(key);
+        },
+      );
       return future;
     });
   }

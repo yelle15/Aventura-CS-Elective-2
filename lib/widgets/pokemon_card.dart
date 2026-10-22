@@ -184,8 +184,24 @@ class _Header extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  pokemon.displayName,
+                Text.rich(
+                  TextSpan(
+                    text: pokemon.displayName,
+                    children: [
+                      if (nickname case final name?)
+                        TextSpan(
+                          text: '  “$name”',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            fontStyle: FontStyle.italic,
+                            color: isDark
+                                ? const Color(0xFFFFCB05)
+                                : const Color(0xFF3466AF),
+                          ),
+                        ),
+                    ],
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -195,32 +211,17 @@ class _Header extends StatelessWidget {
                     color: isDark ? Colors.white : CardPalette.ink,
                   ),
                 ),
-                if (nickname case final name?)
-                  Text(
-                    '“$name”',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w800,
-                      fontStyle: FontStyle.italic,
-                      color: isDark
-                          ? const Color(0xFFFFCB05)
-                          : const Color(0xFF3466AF),
-                    ),
-                  )
-                else
-                  Text(
-                    d == null ? ' ' : d.genus.toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 5.5,
-                      letterSpacing: 0.8,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF4A5260),
-                    ),
+                Text(
+                  d == null ? ' ' : d.genus.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 5.5,
+                    letterSpacing: 0.8,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF4A5260),
                   ),
+                ),
               ],
             ),
           ),

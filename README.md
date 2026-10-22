@@ -13,7 +13,8 @@ and shows them in a scrollable grid. State is managed with
 2. **Nickname editor** – on the detail screen, add, edit or remove a nickname.
    The nickname shows on the card and the detail screen next to the original name.
 3. **Favorites** – add/remove favorites; the floating heart button (bottom
-   right) slides the favorites panel up from the bottom on every screen.
+   right) slides the favorites panel up from the bottom on every screen; drag
+   its handle up to see more, or down to close it.
 4. **Favorite indicator** – every card has a heart that shows and toggles the
    favorite status.
 5. **Type filter** – type chips filter by each Pokémon's real types from the
@@ -41,6 +42,7 @@ lib/
 └── widgets/
     ├── app_bar_actions.dart           # theme button
     ├── favorite_heart.dart            # heart toggle
+    ├── pixel_heart.dart               # pixel-art heart icon
     ├── favorites_panel.dart           # favorites button + slide-up panel
     ├── nickname_editor.dart           # nickname dialog
     ├── pokemon_card.dart, pokemon_grid.dart, search_filter_bar.dart,

@@ -6,6 +6,7 @@ import '../providers/favorites_provider.dart';
 import '../providers/nickname_provider.dart';
 import '../providers/selected_pokemon_provider.dart';
 import '../screens/pokemon_detail_screen.dart';
+import 'pixel_heart.dart';
 
 class FavoritesFab extends ConsumerWidget {
   const FavoritesFab({super.key});
@@ -29,7 +30,7 @@ class FavoritesFab extends ConsumerWidget {
           label: Text('$count'),
           backgroundColor: const Color(0xFFFFCB05),
           textColor: const Color(0xFF1D2C5E),
-          child: const Icon(Icons.favorite),
+          child: const PixelHeart(size: 26, color: Colors.white),
         ),
       ),
     );
@@ -53,10 +54,7 @@ class FavoritesPanel extends ConsumerWidget {
     return Stack(
       children: [
         Positioned.fill(child: child),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
+        Positioned.fill(
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             switchInCurve: Curves.easeOutCubic,
@@ -69,11 +67,13 @@ class FavoritesPanel extends ConsumerWidget {
               child: panel,
             ),
             layoutBuilder: (current, previous) => Stack(
-              alignment: Alignment.bottomCenter,
-              children: [...previous, ?current],
+              children: [
+                for (final panel in previous) Positioned.fill(child: panel),
+                if (current != null) Positioned.fill(child: current),
+              ],
             ),
             child: expanded
-                ? _PanelContent(
+                ? _DraggablePanel(
                     key: const ValueKey('favorites-panel'),
                     openDetailsOnTap: openDetailsOnTap,
                   )
@@ -85,100 +85,185 @@ class FavoritesPanel extends ConsumerWidget {
   }
 }
 
-class _PanelContent extends ConsumerWidget {
-  const _PanelContent({super.key, required this.openDetailsOnTap});
+class _DraggablePanel extends ConsumerStatefulWidget {
+  const _DraggablePanel({super.key, required this.openDetailsOnTap});
 
   final bool openDetailsOnTap;
 
-  void _collapse(WidgetRef ref) =>
-      ref.read(favoritesPanelExpandedProvider.notifier).collapse();
+  @override
+  ConsumerState<_DraggablePanel> createState() => _DraggablePanelState();
+}
+
+class _DraggablePanelState extends ConsumerState<_DraggablePanel> {
+  static const double _peekHeight = 230;
+  static const double _maxSize = 0.85;
+
+  final DraggableScrollableController _sheet = DraggableScrollableController();
+  bool _closing = false;
+
+  @override
+  void dispose() {
+    _sheet.dispose();
+    super.dispose();
+  }
+
+  void _collapse() {
+    if (_closing) return;
+    _closing = true;
+    ref.read(favoritesPanelExpandedProvider.notifier).collapse();
+  }
+
+  void _toggleSize(double peekSize) {
+    if (!_sheet.isAttached) return;
+    final target = _sheet.size < _maxSize - 0.05 ? _maxSize : peekSize;
+    _sheet.animateTo(
+      target,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  bool _onSheetMoved(DraggableScrollableNotification notification) {
+    if (notification.extent <= 0.05) _collapse();
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final peekSize =
+            (_peekHeight / constraints.maxHeight).clamp(0.2, _maxSize);
+
+        return NotificationListener<DraggableScrollableNotification>(
+          onNotification: _onSheetMoved,
+          child: DraggableScrollableSheet(
+            controller: _sheet,
+            initialChildSize: peekSize,
+            minChildSize: 0,
+            maxChildSize: _maxSize,
+            snap: true,
+            snapSizes: [peekSize],
+            builder: (context, scrollController) => _PanelBody(
+              scrollController: scrollController,
+              openDetailsOnTap: widget.openDetailsOnTap,
+              onHandleTap: () => _toggleSize(peekSize),
+              onClose: _collapse,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PanelBody extends ConsumerWidget {
+  const _PanelBody({
+    required this.scrollController,
+    required this.openDetailsOnTap,
+    required this.onHandleTap,
+    required this.onClose,
+  });
+
+  final ScrollController scrollController;
+  final bool openDetailsOnTap;
+  final VoidCallback onHandleTap;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final favorites = ref.watch(favoritesProvider).values.toList();
 
-    return GestureDetector(
-      onVerticalDragEnd: (details) {
-        if ((details.primaryVelocity ?? 0) > 200) _collapse(ref);
-      },
-      child: Material(
-        color: theme.colorScheme.surface,
-        elevation: 12,
-        shadowColor: const Color(0x66000000),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        clipBehavior: Clip.antiAlias,
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 4, 16),
+    return Material(
+      color: theme.colorScheme.surface,
+      elevation: 12,
+      shadowColor: const Color(0x66000000),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: CustomScrollView(
+        controller: scrollController,
+        slivers: [
+          SliverToBoxAdapter(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Center(
+                Semantics(
+                  button: true,
+                  label: 'Drag up to expand favorites',
                   child: GestureDetector(
-                    onTap: () => _collapse(ref),
-                    child: Container(
-                      margin: const EdgeInsets.only(top: 10, bottom: 4),
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.outlineVariant,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                ),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.favorite,
-                      color: Color(0xFFE53935),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Favorites (${favorites.length})',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onHandleTap,
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 24,
+                      child: Center(
+                        child: Container(
+                          width: 44,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.outlineVariant,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
                         ),
                       ),
                     ),
-                    IconButton(
-                      tooltip: 'Hide favorites',
-                      icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                      onPressed: () => _collapse(ref),
-                    ),
-                  ],
-                ),
-                if (favorites.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(0, 4, 12, 8),
-                    child: Text(
-                      'No favorites yet. Tap the heart on a Pokémon card to add one.',
-                    ),
-                  )
-                else
-                  SizedBox(
-                    height: 116,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: favorites.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(width: 8),
-                      itemBuilder: (context, index) => _FavoriteTile(
-                        key: ValueKey(favorites[index].id),
-                        pokemon: favorites[index],
-                        openDetailsOnTap: openDetailsOnTap,
-                      ),
-                    ),
                   ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 4, 4),
+                  child: Row(
+                    children: [
+                      const PixelHeart(size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Favorites (${favorites.length})',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Hide favorites',
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                        onPressed: onClose,
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-        ),
+          if (favorites.isEmpty)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 4, 16, 24),
+                child: Text(
+                  'No favorites yet. Tap the heart on a Pokémon card to add one.',
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 110,
+                  mainAxisExtent: 120,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => _FavoriteTile(
+                    key: ValueKey(favorites[index].id),
+                    pokemon: favorites[index],
+                    openDetailsOnTap: openDetailsOnTap,
+                  ),
+                  childCount: favorites.length,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -214,7 +299,6 @@ class _FavoriteTile extends ConsumerWidget {
     final highlight = !openDetailsOnTap && isSelected;
 
     return SizedBox(
-      width: 92,
       child: Stack(
         children: [
           Positioned.fill(

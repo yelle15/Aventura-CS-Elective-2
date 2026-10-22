@@ -35,7 +35,23 @@ class PokemonDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(nickname ?? pokemon?.displayName ?? 'Pokédex'),
+        title: Text.rich(
+          TextSpan(
+            text: pokemon?.displayName ?? 'Pokédex',
+            children: [
+              if (nickname case final name?)
+                TextSpan(
+                  text: '  “$name”',
+                  style: const TextStyle(
+                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+            ],
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
           if (pokemon != null)
             Padding(
@@ -91,6 +107,9 @@ class _ArtCard extends ConsumerWidget {
     final details = ref.watch(
       pokemonDetailsProvider.select((s) => s.loaded[pokemon.id]),
     );
+    final nickname = ref.watch(
+      nicknameProvider.select((nicknames) => nicknames[pokemon.id]),
+    );
     final theme = Theme.of(context);
     final tint = CardPalette.forSpecies(details?.colorName);
 
@@ -137,8 +156,22 @@ class _ArtCard extends ConsumerWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                Text(
-                  pokemon.displayName,
+                Text.rich(
+                  TextSpan(
+                    text: pokemon.displayName,
+                    children: [
+                      if (nickname case final name?)
+                        TextSpan(
+                          text: '  “$name”',
+                          style: TextStyle(
+                            fontSize: theme.textTheme.titleLarge?.fontSize,
+                            fontWeight: FontWeight.w600,
+                            fontStyle: FontStyle.italic,
+                            color: theme.colorScheme.secondary,
+                          ),
+                        ),
+                    ],
+                  ),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w900,

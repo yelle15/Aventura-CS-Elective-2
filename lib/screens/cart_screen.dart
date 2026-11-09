@@ -288,7 +288,7 @@ class _CartScreenState extends State<CartScreen> {
             children: [
               // Product Image
               InkWell(
-                onTap: () => context.go('/product/${product.id}'),
+                onTap: () => context.go('/product/${product.id}', extra: product),
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
                   width: 76,
@@ -318,7 +318,7 @@ class _CartScreenState extends State<CartScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     InkWell(
-                      onTap: () => context.go('/product/${product.id}'),
+                      onTap: () => context.go('/product/${product.id}', extra: product),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

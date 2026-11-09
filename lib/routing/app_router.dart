@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../data/products.dart';
+import '../models/product.dart';
 import '../screens/cart_screen.dart';
 import '../screens/checkout_confirmation_screen.dart';
 import '../screens/home_screen.dart';
+import '../screens/product_detail_loader.dart';
 import '../screens/product_detail_screen.dart';
 import '../services/cart_service.dart';
 import '../screens/wishlist_screen.dart';
@@ -52,13 +53,16 @@ GoRouter createAppRouter(VoidCallback onThemeToggle) {
       GoRoute(
         path: '/product/:id',
         builder: (context, state) {
-          final id = state.pathParameters['id'];
-          final product = products.firstWhere(
-            (p) => p.id == id,
-            orElse: () => products.first,
-          );
-          return ProductDetailScreen(
-            product: product,
+          final id = state.pathParameters['id']!;
+          final extra = state.extra;
+          if (extra is Product && extra.id == id) {
+            return ProductDetailScreen(
+              product: extra,
+              onThemeToggle: onThemeToggle,
+            );
+          }
+          return ProductDetailLoader(
+            productId: id,
             onThemeToggle: onThemeToggle,
           );
         },

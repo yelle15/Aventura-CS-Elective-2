@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import '../models/product.dart';
+import '../providers/product_provider.dart';
 import '../services/cart_service.dart';
 import '../services/wishlist_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common/app_image_placeholder.dart';
 import '../widgets/common/status_badge.dart';
 import '../widgets/common/wishlist_modal.dart';
+import '../widgets/product/edit_product_dialog.dart';
 import '../widgets/navigation/app_bar.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -24,8 +27,18 @@ class ProductDetailScreen extends StatefulWidget {
   State<ProductDetailScreen> createState() => _ProductDetailScreenState();
 }
 
+enum _ManageAction { edit, delete }
+
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _quantity = 1;
+  late Product _product = widget.product;
+  bool _isSaving = false;
+
+  @override
+  void didUpdateWidget(covariant ProductDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.product != widget.product) _product = widget.product;
+  }
 
   String _formatPrice(double price) {
     return price
@@ -34,19 +47,95 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   void _toggleBookmark() {
-    final isAdded = WishlistService.instance.toggleWishlist(widget.product);
-    showWishlistModal(context, widget.product, isAdded);
+    final isAdded = WishlistService.instance.toggleWishlist(_product);
+    showWishlistModal(context, _product, isAdded);
+  }
+
+  Future<void> _editProduct() async {
+    final changes = await showEditProductDialog(context, _product);
+    if (changes == null || !mounted) return;
+
+    final provider = context.read<ProductProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _isSaving = true);
+    try {
+      final updated = await provider.updateProduct(
+        _product.id,
+        name: changes.name,
+        price: changes.price,
+      );
+      if (!mounted) return;
+      setState(() => _product = updated);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Saved changes to ${updated.name}.')),
+      );
+    } catch (error) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Could not update: ${provider.describeError(error)}'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _deleteProduct() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete product?'),
+        content: Text(
+          'This removes "${_product.name}" from the shop. '
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.red),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final provider = context.read<ProductProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    final deletedName = _product.name;
+    setState(() => _isSaving = true);
+    try {
+      await provider.deleteProduct(_product.id);
+      CartService.instance.removeFromCart(_product.id);
+      WishlistService.instance.removeFromWishlist(_product.id);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Deleted $deletedName.')),
+      );
+      router.go('/');
+    } catch (error) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Could not delete: ${provider.describeError(error)}'),
+        ),
+      );
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   void _addToCart() {
-    CartService.instance.addToCart(widget.product, quantity: _quantity);
+    CartService.instance.addToCart(_product, quantity: _quantity);
     context.go('/cart');
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final formattedPrice = _formatPrice(widget.product.price);
+    final formattedPrice = _formatPrice(_product.price);
     final isTabletOrDesktop = MediaQuery.sizeOf(context).width >= 768;
 
     return Scaffold(
@@ -54,6 +143,43 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         onThemeToggle: widget.onThemeToggle ?? () {},
         showBack: true,
         actions: [
+          PopupMenuButton<_ManageAction>(
+            tooltip: 'Manage product',
+            enabled: !_isSaving,
+            icon: _isSaving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.more_vert_rounded),
+            onSelected: (action) {
+              switch (action) {
+                case _ManageAction.edit:
+                  _editProduct();
+                case _ManageAction.delete:
+                  _deleteProduct();
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: _ManageAction.edit,
+                child: ListTile(
+                  leading: Icon(Icons.edit_outlined),
+                  title: Text('Edit product'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: _ManageAction.delete,
+                child: ListTile(
+                  leading: Icon(Icons.delete_outline_rounded),
+                  title: Text('Delete product'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
           if (widget.onThemeToggle != null)
             IconButton(
               onPressed: widget.onThemeToggle,
@@ -130,18 +256,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           Padding(
             padding: const EdgeInsets.all(24),
             child: ProductImage(
-              path: widget.product.imagePath,
-              scale: widget.product.imageScale,
+              path: _product.imagePath,
+              scale: _product.imageScale,
               showPlaceholder: false,
             ),
           ),
-          if (widget.product.isNew)
+          if (_product.isNew)
             const Positioned(
               top: 14,
               left: 14,
               child: StatusBadge(label: 'NEW'),
             ),
-          if (widget.product.isOnSale)
+          if (_product.isOnSale)
             const Positioned(
               top: 14,
               left: 14,
@@ -175,7 +301,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
               ),
               child: Text(
-                widget.product.category.toUpperCase(),
+                _product.category.toUpperCase(),
                 style: const TextStyle(
                   color: AppTheme.red,
                   fontWeight: FontWeight.w800,
@@ -187,7 +313,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ListenableBuilder(
               listenable: WishlistService.instance,
               builder: (context, _) {
-                final isBookmarked = WishlistService.instance.isWishlisted(widget.product.id);
+                final isBookmarked = WishlistService.instance.isWishlisted(_product.id);
                 return InkWell(
                   onTap: _toggleBookmark,
                   borderRadius: BorderRadius.circular(8),
@@ -224,7 +350,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
         // Product Name
         Text(
-          widget.product.name,
+          _product.name,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w900,
                 letterSpacing: -0.5,
@@ -238,7 +364,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 const Icon(Icons.star_rounded, color: AppTheme.rating, size: 20),
             const SizedBox(width: 4),
             Text(
-              widget.product.rating.toStringAsFixed(1),
+              _product.rating.toStringAsFixed(1),
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             const SizedBox(width: 8),
@@ -287,10 +413,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     color: AppTheme.red,
                   ),
             ),
-            if (widget.product.isOnSale && widget.product.oldPrice != null) ...[
+            if (_product.isOnSale && _product.oldPrice != null) ...[
               const SizedBox(width: 12),
               Text(
-                '₱${_formatPrice(widget.product.oldPrice!)}',
+                '₱${_formatPrice(_product.oldPrice!)}',
                 style: TextStyle(
                   fontSize: 16,
                   decoration: TextDecoration.lineThrough,
@@ -313,7 +439,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          widget.product.description,
+          _product.description,
           style: TextStyle(
             fontSize: 15,
             height: 1.5,
@@ -391,7 +517,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           _buildSpecRow(
             icon: Icons.category_outlined,
             title: 'Category',
-            value: widget.product.category,
+            value: _product.category,
             isDark: isDark,
           ),
           const Divider(height: 16),
@@ -456,7 +582,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Widget _buildStickyBottomBar(bool isDark, String formattedPrice) {
     final colors = Theme.of(context).colorScheme;
-    final totalPrice = _formatPrice(widget.product.price * _quantity);
+    final totalPrice = _formatPrice(_product.price * _quantity);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
       decoration: BoxDecoration(

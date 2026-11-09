@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static const red = Color(0xFFE53935);
@@ -13,6 +14,16 @@ class AppTheme {
   static const neutral = Color(0xFF757575);
   static const onAccent = Color(0xFFFFFFFF);
 
+  static TextStyle display({double fontSize = 40, Color? color}) {
+    return GoogleFonts.oswald(
+      fontSize: fontSize,
+      fontWeight: FontWeight.w700,
+      height: 1.05,
+      letterSpacing: 0.5,
+      color: color,
+    );
+  }
+
   static ThemeData get dark => _build(Brightness.dark);
   static ThemeData get light => _build(Brightness.light);
 
@@ -22,7 +33,11 @@ class AppTheme {
       seedColor: red,
       brightness: brightness,
       surface: isDark ? surface : Colors.white,
+    ).copyWith(primary: red, onPrimary: Colors.white);
+    final baseText = GoogleFonts.interTextTheme(
+      ThemeData(brightness: brightness).textTheme,
     );
+    final softBorder = isDark ? border : const Color(0xFFD5D5D9);
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
@@ -48,15 +63,37 @@ class AppTheme {
             borderRadius: BorderRadius.circular(10),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
+          textStyle: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.2,
+          ),
         ),
       ),
-      textTheme: TextTheme(
-        titleLarge: const TextStyle(fontWeight: FontWeight.w800),
-        headlineMedium: TextStyle(
+      chipTheme: ChipThemeData(
+        shape: StadiumBorder(side: BorderSide(color: softBorder)),
+        labelStyle: GoogleFonts.inter(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      ),
+      sliderTheme: SliderThemeData(
+        trackHeight: 4,
+        activeTrackColor: red,
+        inactiveTrackColor: softBorder,
+        thumbColor: red,
+        overlayColor: red.withAlpha(40),
+      ),
+      textTheme: baseText.copyWith(
+        titleLarge: baseText.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        headlineMedium: baseText.headlineMedium?.copyWith(
           fontWeight: FontWeight.w900,
           color: isDark ? Colors.white : ink,
         ),
-        bodyMedium: TextStyle(color: isDark ? muted : const Color(0xFF55555B)),
+        bodyMedium: baseText.bodyMedium?.copyWith(
+          color: isDark ? muted : const Color(0xFF55555B),
+        ),
       ),
     );
   }

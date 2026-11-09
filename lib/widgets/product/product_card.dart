@@ -37,7 +37,11 @@ class _ProductCardState extends State<ProductCard> {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap:
-            widget.onTap ?? () => context.go('/product/${widget.product.id}'),
+            widget.onTap ??
+            () => context.go(
+                  '/product/${widget.product.id}',
+                  extra: widget.product,
+                ),
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Column(

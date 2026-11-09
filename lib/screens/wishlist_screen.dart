@@ -234,7 +234,7 @@ class WishlistScreen extends StatelessWidget {
         ),
       ),
       child: InkWell(
-        onTap: () => context.go('/product/${product.id}'),
+        onTap: () => context.go('/product/${product.id}', extra: product),
         borderRadius: BorderRadius.circular(14),
         child: Padding(
           padding: const EdgeInsets.all(12),

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
+import 'providers/auth_provider.dart';
 import 'providers/product_provider.dart';
 
 const supabaseUrl = 'https://cbctnaoiyrzjrknexmrj.supabase.co';
@@ -14,8 +15,13 @@ Future<void> main() async {
   await Supabase.initialize(url: supabaseUrl, publishableKey: supabasePublishableKey);
 
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ProductProvider()..initialize(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(
+          create: (_) => ProductProvider()..initialize(),
+        ),
+      ],
       child: const RiftsApp(),
     ),
   );

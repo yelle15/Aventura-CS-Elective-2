@@ -1,12 +1,61 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:prelim_exam/app.dart';
 import 'package:prelim_exam/models/product.dart';
+import 'package:prelim_exam/providers/auth_provider.dart';
 import 'package:prelim_exam/providers/product_provider.dart';
+import 'package:prelim_exam/services/auth_service.dart';
 import 'package:prelim_exam/services/product_service.dart';
 import 'package:prelim_exam/widgets/product/product_grid.dart';
+
+class FakeAuthService implements AuthService {
+  FakeAuthService({this.signedIn = true});
+
+  final _controller = StreamController<void>.broadcast();
+  bool signedIn;
+  int gitHubSignIns = 0;
+
+  @override
+  bool get isSignedIn => signedIn;
+
+  @override
+  String? get email => signedIn ? 'player@riffs.test' : null;
+
+  @override
+  Stream<void> get changes => _controller.stream;
+
+  void _set(bool signedIn) {
+    this.signedIn = signedIn;
+    _controller.add(null);
+  }
+
+  @override
+  Future<void> signIn({required String email, required String password}) async {
+    if (password != 'secret123') {
+      throw AuthException('Invalid login credentials');
+    }
+    _set(true);
+  }
+
+  @override
+  Future<bool> signUp({required String email, required String password}) async {
+    return false;
+  }
+
+  @override
+  Future<void> signInWithGitHub() async {
+    gitHubSignIns++;
+    _set(true);
+  }
+
+  @override
+  Future<void> signOut() async => _set(false);
+}
 
 class FakeProductService implements ProductService {
   FakeProductService(List<Product> products) : _products = [...products];
@@ -106,18 +155,26 @@ final _sampleProducts = [
   _product('bass-guitar-b2-global', 'B2 Global Bass', 'Bass Guitar', 6685),
 ];
 
-Widget _buildApp(ProductProvider provider) {
-  return ChangeNotifierProvider.value(
-    value: provider,
+Widget _buildApp(ProductProvider provider, AuthService auth) {
+  return MultiProvider(
+    providers: [
+      ChangeNotifierProvider(create: (_) => AuthProvider(service: auth)),
+      ChangeNotifierProvider.value(value: provider),
+    ],
     child: const RiftsApp(),
   );
 }
 
-Future<ProductProvider> _pumpShop(WidgetTester tester) async {
+Future<ProductProvider> _pumpShop(
+  WidgetTester tester, {
+  AuthService? auth,
+}) async {
   final provider = ProductProvider(
     service: FakeProductService(_sampleProducts),
   );
-  await tester.pumpWidget(_buildApp(provider..initialize()));
+  await tester.pumpWidget(
+    _buildApp(provider..initialize(), auth ?? FakeAuthService()),
+  );
   await tester.pumpAndSettle();
   return provider;
 }
@@ -135,6 +192,83 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
+  group('auth', () {
+    testWidgets('signed-out visitors see the login screen', (tester) async {
+      await _pumpShop(tester, auth: FakeAuthService(signedIn: false));
+
+      expect(find.text('Welcome back'), findsOneWidget);
+      expect(find.text('Continue with GitHub'), findsOneWidget);
+      expect(find.text('All Products'), findsNothing);
+    });
+
+    testWidgets('email sign-in opens the shop', (tester) async {
+      await _pumpShop(tester, auth: FakeAuthService(signedIn: false));
+
+      await tester.enterText(
+        find.byType(TextFormField).at(0),
+        'player@riffs.test',
+      );
+      await tester.enterText(find.byType(TextFormField).at(1), 'secret123');
+      await _tapVisible(tester, find.widgetWithText(FilledButton, 'Sign in'));
+
+      expect(find.text('Welcome back'), findsNothing);
+      expect(find.text('All Products').first, findsOneWidget);
+    });
+
+    testWidgets('a wrong password shows the error', (tester) async {
+      await _pumpShop(tester, auth: FakeAuthService(signedIn: false));
+
+      await tester.enterText(
+        find.byType(TextFormField).at(0),
+        'player@riffs.test',
+      );
+      await tester.enterText(find.byType(TextFormField).at(1), 'wrong-pass');
+      await _tapVisible(tester, find.widgetWithText(FilledButton, 'Sign in'));
+
+      expect(find.text('Invalid login credentials'), findsOneWidget);
+      expect(find.text('Welcome back'), findsOneWidget);
+    });
+
+    testWidgets('GitHub sign-in opens the shop', (tester) async {
+      final auth = FakeAuthService(signedIn: false);
+      await _pumpShop(tester, auth: auth);
+
+      await _tapVisible(tester, find.text('Continue with GitHub'));
+
+      expect(auth.gitHubSignIns, 1);
+      expect(find.text('All Products').first, findsOneWidget);
+    });
+
+    testWidgets('sign up asks the user to confirm their email', (tester) async {
+      await _pumpShop(tester, auth: FakeAuthService(signedIn: false));
+
+      await _tapVisible(tester, find.text('Create an account'));
+      await tester.enterText(
+        find.byType(TextFormField).at(0),
+        'new@riffs.test',
+      );
+      await tester.enterText(find.byType(TextFormField).at(1), 'secret123');
+      await _tapVisible(tester, find.widgetWithText(FilledButton, 'Sign up'));
+
+      expect(
+        find.text('Check your email to confirm your account, then sign in.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('sign out returns to the login screen', (tester) async {
+      await _pumpShop(tester);
+
+      await tester.tap(find.byTooltip('Account'));
+      await tester.pumpAndSettle();
+      expect(find.text('player@riffs.test'), findsOneWidget);
+      await tester.tap(find.text('Sign out'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Continue with GitHub'), findsOneWidget);
+    });
+  });
+
   group('pagination', () {
     testWidgets('first page shows the 6 cheapest products', (tester) async {
       await _pumpShop(tester);

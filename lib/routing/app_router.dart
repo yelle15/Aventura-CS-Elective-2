@@ -2,17 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../models/product.dart';
+import '../providers/auth_provider.dart';
 import '../screens/cart_screen.dart';
 import '../screens/checkout_confirmation_screen.dart';
 import '../screens/home_screen.dart';
+import '../screens/login_screen.dart';
 import '../screens/product_detail_loader.dart';
 import '../screens/product_detail_screen.dart';
 import '../services/cart_service.dart';
 import '../screens/wishlist_screen.dart';
 
-GoRouter createAppRouter(VoidCallback onThemeToggle) {
+GoRouter createAppRouter(VoidCallback onThemeToggle, AuthProvider auth) {
   return GoRouter(
+    refreshListenable: auth,
+    redirect: (context, state) {
+      final onLogin = state.matchedLocation == '/login';
+      if (!auth.isSignedIn) return onLogin ? null : '/login';
+      if (onLogin) return '/';
+      return null;
+    },
     routes: [
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const LoginScreen(),
+      ),
       GoRoute(
         path: '/',
         builder: (context, state) => HomeScreen(onThemeToggle: onThemeToggle),

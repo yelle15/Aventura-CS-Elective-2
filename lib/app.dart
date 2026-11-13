@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import 'providers/auth_provider.dart';
 import 'routing/app_router.dart';
 import 'theme/app_theme.dart';
 
@@ -18,7 +20,7 @@ class _RiftsAppState extends State<RiftsApp> {
   @override
   void initState() {
     super.initState();
-    _router = createAppRouter(_toggleTheme);
+    _router = createAppRouter(_toggleTheme, context.read<AuthProvider>());
   }
 
   void _toggleTheme() {

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
+import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
 
 class RiftsAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -57,6 +59,28 @@ class RiftsAppBar extends StatelessWidget implements PreferredSizeWidget {
                     ? Icons.light_mode_outlined
                     : Icons.dark_mode_outlined,
               ),
+            ),
+          if (!showBack)
+            PopupMenuButton<String>(
+              tooltip: 'Account',
+              icon: const Icon(Icons.account_circle_outlined),
+              onSelected: (_) => context.read<AuthProvider>().signOut(),
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  enabled: false,
+                  child: Text(
+                    context.read<AuthProvider>().email ?? 'Signed in',
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'sign-out',
+                  child: ListTile(
+                    leading: Icon(Icons.logout_rounded),
+                    title: Text('Sign out'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
             ),
         ]),
         const SizedBox(width: 20),

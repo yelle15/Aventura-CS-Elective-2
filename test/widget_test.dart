@@ -1,79 +1,147 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:prelim_exam/app.dart';
+import 'package:prelim_exam/core/app_exception.dart';
+import 'package:prelim_exam/models/cart_item.dart';
+import 'package:prelim_exam/models/order.dart';
 import 'package:prelim_exam/models/product.dart';
-import 'package:prelim_exam/providers/auth_provider.dart';
-import 'package:prelim_exam/providers/product_provider.dart';
+import 'package:prelim_exam/models/product_category.dart';
+import 'package:prelim_exam/models/user_profile.dart';
+import 'package:prelim_exam/providers/cart_provider.dart';
+import 'package:prelim_exam/providers/router_provider.dart';
+import 'package:prelim_exam/providers/service_providers.dart';
 import 'package:prelim_exam/services/auth_service.dart';
+import 'package:prelim_exam/services/category_service.dart';
+import 'package:prelim_exam/services/order_service.dart';
 import 'package:prelim_exam/services/product_service.dart';
-import 'package:prelim_exam/widgets/product/product_grid.dart';
+import 'package:prelim_exam/services/profile_service.dart';
+import 'package:prelim_exam/services/storage_service.dart';
+import 'package:prelim_exam/widgets/product_card.dart';
+
+const customerId = 'customer-1';
+const adminId = 'admin-1';
 
 class FakeAuthService implements AuthService {
-  FakeAuthService({this.signedIn = true});
+  FakeAuthService(this.userId);
 
-  final _controller = StreamController<void>.broadcast();
-  bool signedIn;
-  int gitHubSignIns = 0;
-
-  @override
-  bool get isSignedIn => signedIn;
+  String? userId;
+  final _changes = StreamController<String?>.broadcast();
 
   @override
-  String? get email => signedIn ? 'player@riffs.test' : null;
+  Stream<String?> userIdChanges() async* {
+    yield userId;
+    yield* _changes.stream;
+  }
 
-  @override
-  Stream<void> get changes => _controller.stream;
-
-  void _set(bool signedIn) {
-    this.signedIn = signedIn;
-    _controller.add(null);
+  void _set(String? id) {
+    userId = id;
+    _changes.add(id);
   }
 
   @override
-  Future<void> signIn({required String email, required String password}) async {
+  Future<void> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
     if (password != 'secret123') {
-      throw AuthException('Invalid login credentials');
+      throw const AppException('Invalid login credentials');
     }
-    _set(true);
+    _set(email.startsWith('admin') ? adminId : customerId);
   }
 
   @override
-  Future<bool> signUp({required String email, required String password}) async {
-    return false;
-  }
+  Future<bool> signUpWithEmail({
+    required String email,
+    required String password,
+    required String firstname,
+    required String lastname,
+  }) async =>
+      false;
 
   @override
-  Future<void> signInWithGitHub() async {
-    gitHubSignIns++;
-    _set(true);
-  }
+  Future<void> signInWithGoogle() async => _set(customerId);
 
   @override
-  Future<void> signOut() async => _set(false);
+  Future<void> signOut() async => _set(null);
 }
 
-class FakeProductService implements ProductService {
-  FakeProductService(List<Product> products) : _products = [...products];
+class FakeProfileService implements ProfileService {
+  @override
+  Future<UserProfile?> fetchProfile(String userId) async {
+    return switch (userId) {
+      adminId => const UserProfile(
+          id: adminId,
+          email: 'admin@riffs.test',
+          firstname: 'Ada',
+          lastname: 'Admin',
+          role: 'admin',
+        ),
+      customerId => const UserProfile(
+          id: customerId,
+          email: 'cara@riffs.test',
+          firstname: 'Cara',
+          lastname: 'Customer',
+          role: 'customer',
+        ),
+      _ => null,
+    };
+  }
+}
 
-  final List<Product> _products;
+const categories = [
+  ProductCategory(id: 1, name: 'Bass Guitar'),
+  ProductCategory(id: 2, name: 'Electric Guitar'),
+];
+
+Product product(int id, String name, double price, int stock, int categoryId) {
+  return Product(
+    id: id,
+    name: name,
+    price: price,
+    stock: stock,
+    categoryId: categoryId,
+    categoryName: categories.firstWhere((c) => c.id == categoryId).name,
+  );
+}
+
+List<Product> sampleProducts() => [
+      product(1, 'Starter Bass', 6685, 15, 1),
+      product(2, 'Pulse Red', 8999, 0, 2),
+      product(3, 'Skywing Blue', 9995, 2, 2),
+      product(4, 'Semi-Hollow Blue', 9995, 4, 2),
+      product(5, 'Global B1 Bass', 15999, 8, 1),
+      product(6, 'Skywing Sunburst', 18999, 10, 2),
+      product(7, 'Global B2 Bass', 23999, 5, 1),
+      product(8, 'Skywing Black', 49999, 6, 2),
+      product(9, 'Epiphone 355', 52999, 2, 2),
+    ];
+
+class FakeProductService implements ProductService {
+  FakeProductService(this.products);
+
+  final List<Product> products;
 
   @override
   Future<ProductPage> fetchProducts({
     required int page,
     required int pageSize,
-    String? category,
+    int? categoryId,
     double? minPrice,
     double? maxPrice,
+    String search = '',
   }) async {
-    final matches = _products
-        .where((p) => category == null || p.category == category)
+    final matches = products
+        .where((p) => categoryId == null || p.categoryId == categoryId)
         .where((p) => minPrice == null || p.price >= minPrice)
         .where((p) => maxPrice == null || p.price <= maxPrice)
+        .where(
+          (p) => p.name.toLowerCase().contains(search.toLowerCase()),
+        )
         .toList()
       ..sort((a, b) {
         final byPrice = a.price.compareTo(b.price);
@@ -87,343 +155,407 @@ class FakeProductService implements ProductService {
 
   @override
   Future<PriceBounds?> fetchPriceBounds() async {
-    if (_products.isEmpty) return null;
-    final prices = _products.map((p) => p.price).toList()..sort();
+    if (products.isEmpty) return null;
+    final prices = products.map((p) => p.price).toList()..sort();
     return PriceBounds(prices.first, prices.last);
   }
 
   @override
-  Future<List<String>> fetchCategories() async =>
-      (_products.map((p) => p.category).toSet().toList()..sort());
+  Future<List<Product>> fetchFeatured({int limit = 5}) async => const [];
 
   @override
-  Future<List<Product>> fetchFeatured({int limit = 5}) async =>
-      _products.take(limit).toList();
-
-  @override
-  Future<Product?> fetchProductById(String id) async {
-    for (final product in _products) {
-      if (product.id == id) return product;
+  Future<Product?> fetchProduct(int id) async {
+    for (final p in products) {
+      if (p.id == id) return p;
     }
     return null;
   }
 
   @override
-  Future<Product> updateProduct(String id, {String? name, double? price}) async {
-    final index = _products.indexWhere((p) => p.id == id);
-    final old = _products[index];
-    final updated = Product(
-      id: old.id,
-      name: name ?? old.name,
-      category: old.category,
-      price: price ?? old.price,
-      imagePath: old.imagePath,
-      description: old.description,
-      rating: old.rating,
+  Future<Product> createProduct(ProductInput input) async {
+    final created = Product(
+      id: products.length + 100,
+      name: input.name,
+      description: input.description,
+      price: input.price,
+      stock: input.stock,
+      categoryId: input.categoryId,
+      imageUrl: input.imageUrl,
     );
-    _products[index] = updated;
+    products.add(created);
+    return created;
+  }
+
+  @override
+  Future<Product> updateProduct(int id, ProductInput input) async {
+    final index = products.indexWhere((p) => p.id == id);
+    final updated = Product(
+      id: id,
+      name: input.name,
+      description: input.description,
+      price: input.price,
+      stock: input.stock,
+      categoryId: input.categoryId,
+      imageUrl: input.imageUrl,
+    );
+    products[index] = updated;
     return updated;
   }
 
   @override
-  Future<void> deleteProduct(String id) async {
-    _products.removeWhere((p) => p.id == id);
+  Future<void> deleteProduct(int id) async {
+    products.removeWhere((p) => p.id == id);
   }
 }
 
-Product _product(String id, String name, String category, double price) {
-  return Product(
-    id: id,
-    name: name,
-    category: category,
-    price: price,
-    imagePath: 'assets/images/products/missing.png',
-    description: '$name description',
-    rating: 4.5,
-  );
+class FakeCategoryService implements CategoryService {
+  @override
+  Future<List<ProductCategory>> fetchCategories() async => categories;
+
+  @override
+  Future<void> createCategory(String name) async {}
+
+  @override
+  Future<void> renameCategory(int id, String name) async {}
+
+  @override
+  Future<void> deleteCategory(int id) async {}
 }
 
-final _sampleProducts = [
-  _product('355-epiphone', '355 Epiphone Semi-Hollow', 'Electric Guitar', 52999),
-  _product('stratocaster-skywing', 'Skywing Black', 'Electric Guitar', 49999),
-  _product('global-b1-bass', 'Global B1 Bass', 'Bass Guitar', 15999),
-  _product('global-b2-bass', 'Global B2 Natural Bass', 'Bass Guitar', 23999),
-  _product('pulse-st-0037-guitar', 'Pulse ST Red', 'Electric Guitar', 8999),
-  _product('stratocaster-skywing-sunburst', 'Skywing Sunburst', 'Electric Guitar', 18999),
-  _product('stratocaster-skywing-blue', 'Skywing Blue', 'Electric Guitar', 9995),
-  _product('semi-hollow-blue', 'Semi-Hollow Blue', 'Electric Guitar', 9995),
-  _product('bass-guitar-b2-global', 'B2 Global Bass', 'Bass Guitar', 6685),
-];
-
-Widget _buildApp(ProductProvider provider, AuthService auth) {
-  return MultiProvider(
-    providers: [
-      ChangeNotifierProvider(create: (_) => AuthProvider(service: auth)),
-      ChangeNotifierProvider.value(value: provider),
-    ],
-    child: const RiftsApp(),
-  );
+class FakeStorageService implements StorageService {
+  @override
+  Future<String> uploadProductImage({
+    required Uint8List bytes,
+    required String fileName,
+    String? contentType,
+  }) async =>
+      'https://example.com/$fileName';
 }
 
-Future<ProductProvider> _pumpShop(
-  WidgetTester tester, {
-  AuthService? auth,
-}) async {
-  final provider = ProductProvider(
-    service: FakeProductService(_sampleProducts),
-  );
-  await tester.pumpWidget(
-    _buildApp(provider..initialize(), auth ?? FakeAuthService()),
-  );
-  await tester.pumpAndSettle();
-  return provider;
-}
+class FakeOrderService implements OrderService {
+  FakeOrderService(this.products);
 
-Finder _inGrid(String text) => find.descendant(
-      of: find.byType(ProductGrid),
-      matching: find.text(text),
+  final List<Product> products;
+  final List<Order> orders = [];
+
+  @override
+  Future<OrderReceipt> placeOrder(List<CartItem> items) async {
+    var total = 0.0;
+    final lines = <OrderItem>[];
+    for (final item in items) {
+      final index = products.indexWhere((p) => p.id == item.product.id);
+      final current = products[index];
+      if (current.stock < item.quantity) {
+        throw AppException('Only ${current.stock} left of "${current.name}".');
+      }
+      products[index] = current.copyWith(stock: current.stock - item.quantity);
+      total += current.price * item.quantity;
+      lines.add(
+        OrderItem(
+          id: lines.length + 1,
+          productId: current.id,
+          productName: current.name,
+          unitPrice: current.price,
+          quantity: item.quantity,
+        ),
+      );
+    }
+    final order = Order(
+      id: orders.length + 1,
+      createdAt: DateTime(2026, 11, 17, 14, orders.length),
+      status: 'done',
+      total: total,
+      items: lines,
     );
+    orders.insert(0, order);
+    return OrderReceipt(orderId: order.id, total: total);
+  }
 
-Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
+  @override
+  Future<List<Order>> fetchMyOrders(String userId) async => List.of(orders);
+
+  @override
+  Future<List<Order>> fetchAllOrders() async => List.of(orders);
+
+  @override
+  Future<void> updateStatus(int orderId, String status) async {}
+}
+
+class Harness {
+  Harness({String? userId})
+      : auth = FakeAuthService(userId),
+        products = sampleProducts() {
+    orders = FakeOrderService(products);
+  }
+
+  final FakeAuthService auth;
+  final List<Product> products;
+  late final FakeOrderService orders;
+  late ProviderContainer container;
+
+  Future<void> pump(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(900, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authServiceProvider.overrideWith((ref) => auth),
+          profileServiceProvider.overrideWith((ref) => FakeProfileService()),
+          productServiceProvider
+              .overrideWith((ref) => FakeProductService(products)),
+          categoryServiceProvider.overrideWith((ref) => FakeCategoryService()),
+          storageServiceProvider.overrideWith((ref) => FakeStorageService()),
+          orderServiceProvider.overrideWith((ref) => orders),
+        ],
+        child: const RiffsApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    container = ProviderScope.containerOf(
+      tester.element(find.byType(RiffsApp)),
+    );
+  }
+}
+
+Future<void> tapVisible(WidgetTester tester, Finder finder) async {
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
   await tester.tap(finder);
   await tester.pumpAndSettle();
 }
 
+Finder cardFor(String name) => find.ancestor(
+      of: find.text(name),
+      matching: find.byType(ProductCard),
+    );
+
+Finder inCard(String name, Finder matching) =>
+    find.descendant(of: cardFor(name), matching: matching);
+
 void main() {
-  group('auth', () {
-    testWidgets('signed-out visitors see the login screen', (tester) async {
-      await _pumpShop(tester, auth: FakeAuthService(signedIn: false));
+  group('auth gate', () {
+    testWidgets('signed-out users only see the login screen', (tester) async {
+      await Harness().pump(tester);
 
       expect(find.text('Welcome back'), findsOneWidget);
-      expect(find.text('Continue with GitHub'), findsOneWidget);
-      expect(find.text('All Products'), findsNothing);
-    });
-
-    testWidgets('email sign-in opens the shop', (tester) async {
-      await _pumpShop(tester, auth: FakeAuthService(signedIn: false));
-
-      await tester.enterText(
-        find.byType(TextFormField).at(0),
-        'player@riffs.test',
-      );
-      await tester.enterText(find.byType(TextFormField).at(1), 'secret123');
-      await _tapVisible(tester, find.widgetWithText(FilledButton, 'Sign in'));
-
-      expect(find.text('Welcome back'), findsNothing);
-      expect(find.text('All Products').first, findsOneWidget);
+      expect(find.text('Continue with Google'), findsOneWidget);
+      expect(find.byType(ProductCard), findsNothing);
     });
 
     testWidgets('a wrong password shows the error', (tester) async {
-      await _pumpShop(tester, auth: FakeAuthService(signedIn: false));
+      await Harness().pump(tester);
 
-      await tester.enterText(
-        find.byType(TextFormField).at(0),
-        'player@riffs.test',
-      );
-      await tester.enterText(find.byType(TextFormField).at(1), 'wrong-pass');
-      await _tapVisible(tester, find.widgetWithText(FilledButton, 'Sign in'));
+      await tester.enterText(find.byType(TextFormField).at(0), 'cara@riffs.test');
+      await tester.enterText(find.byType(TextFormField).at(1), 'nope');
+      await tapVisible(tester, find.widgetWithText(FilledButton, 'Log in'));
 
       expect(find.text('Invalid login credentials'), findsOneWidget);
-      expect(find.text('Welcome back'), findsOneWidget);
     });
 
-    testWidgets('GitHub sign-in opens the shop', (tester) async {
-      final auth = FakeAuthService(signedIn: false);
-      await _pumpShop(tester, auth: auth);
+    testWidgets('signing in as a customer opens the shop', (tester) async {
+      await Harness().pump(tester);
 
-      await _tapVisible(tester, find.text('Continue with GitHub'));
-
-      expect(auth.gitHubSignIns, 1);
-      expect(find.text('All Products').first, findsOneWidget);
-    });
-
-    testWidgets('sign up asks the user to confirm their email', (tester) async {
-      await _pumpShop(tester, auth: FakeAuthService(signedIn: false));
-
-      await _tapVisible(tester, find.text('Create an account'));
-      await tester.enterText(
-        find.byType(TextFormField).at(0),
-        'new@riffs.test',
-      );
+      await tester.enterText(find.byType(TextFormField).at(0), 'cara@riffs.test');
       await tester.enterText(find.byType(TextFormField).at(1), 'secret123');
-      await _tapVisible(tester, find.widgetWithText(FilledButton, 'Sign up'));
+      await tapVisible(tester, find.widgetWithText(FilledButton, 'Log in'));
 
-      expect(
-        find.text('Check your email to confirm your account, then sign in.'),
-        findsOneWidget,
-      );
+      expect(find.text('All Products'), findsOneWidget);
+      expect(find.text('Showing 1–6 of 9 products'), findsOneWidget);
     });
 
-    testWidgets('sign out returns to the login screen', (tester) async {
-      await _pumpShop(tester);
+    testWidgets('Google sign-in opens the shop', (tester) async {
+      await Harness().pump(tester);
 
-      await tester.tap(find.byTooltip('Account'));
-      await tester.pumpAndSettle();
-      expect(find.text('player@riffs.test'), findsOneWidget);
-      await tester.tap(find.text('Sign out'));
-      await tester.pumpAndSettle();
+      await tapVisible(tester, find.text('Continue with Google'));
 
-      expect(find.text('Continue with GitHub'), findsOneWidget);
+      expect(find.text('All Products'), findsOneWidget);
+    });
+
+    testWidgets('sign up validates the form', (tester) async {
+      await Harness().pump(tester);
+
+      await tapVisible(tester, find.text("Don't have an account? Sign up"));
+      await tapVisible(tester, find.widgetWithText(FilledButton, 'Sign up'));
+
+      expect(find.text('Enter your first name'), findsOneWidget);
+      expect(find.text('Enter a valid email address'), findsOneWidget);
     });
   });
 
-  group('pagination', () {
-    testWidgets('first page shows the 6 cheapest products', (tester) async {
-      await _pumpShop(tester);
+  group('customer', () {
+    testWidgets('sees add to cart and no admin controls', (tester) async {
+      await Harness(userId: customerId).pump(tester);
 
-      expect(find.text('All Products').first, findsOneWidget);
-      expect(find.text('Showing 1–6 of 9 products'), findsOneWidget);
-      expect(find.text('Page 1 of 2'), findsOneWidget);
-      expect(_inGrid('B2 Global Bass'), findsOneWidget);
-      expect(_inGrid('Skywing Sunburst'), findsOneWidget);
-      expect(_inGrid('355 Epiphone Semi-Hollow'), findsNothing);
+      expect(find.widgetWithText(FilledButton, 'Add to cart'), findsWidgets);
+      expect(find.text('Edit'), findsNothing);
+      expect(find.text('Add product'), findsNothing);
     });
 
-    testWidgets('next page loads the remaining products', (tester) async {
-      await _pumpShop(tester);
+    testWidgets('cannot open admin pages', (tester) async {
+      final harness = Harness(userId: customerId);
+      await harness.pump(tester);
 
-      await _tapVisible(tester, find.byTooltip('Next page'));
+      harness.container.read(routerProvider).go('/admin/products');
+      await tester.pumpAndSettle();
 
-      expect(find.text('Page 2 of 2'), findsOneWidget);
+      expect(find.text('Manage Products'), findsNothing);
+      expect(find.text('All Products'), findsOneWidget);
+    });
+
+    testWidgets('pagination shows 6 per page', (tester) async {
+      await Harness(userId: customerId).pump(tester);
+
+      expect(find.byType(ProductCard), findsNWidgets(6));
+      await tapVisible(tester, find.byTooltip('Next page'));
+
       expect(find.text('Showing 7–9 of 9 products'), findsOneWidget);
-      expect(_inGrid('355 Epiphone Semi-Hollow'), findsOneWidget);
-      expect(_inGrid('B2 Global Bass'), findsNothing);
+      expect(find.byType(ProductCard), findsNWidgets(3));
     });
 
-    testWidgets('page number buttons jump to that page', (tester) async {
-      await _pumpShop(tester);
+    testWidgets('category filter narrows the products', (tester) async {
+      await Harness(userId: customerId).pump(tester);
 
-      await _tapVisible(tester, find.widgetWithText(OutlinedButton, '2'));
-      expect(find.text('Page 2 of 2'), findsOneWidget);
+      await tapVisible(tester, find.widgetWithText(FilterChip, 'Bass Guitar'));
 
-      await _tapVisible(tester, find.byTooltip('Previous page'));
-      expect(find.text('Page 1 of 2'), findsOneWidget);
+      expect(find.text('Showing 1–3 of 3 products'), findsOneWidget);
+      expect(find.text('Pulse Red'), findsNothing);
+    });
+
+    testWidgets('out-of-stock products cannot be added', (tester) async {
+      await Harness(userId: customerId).pump(tester);
+
+      final soldOut = inCard('Pulse Red', find.byType(FilledButton));
+      expect(tester.widget<FilledButton>(soldOut).onPressed, isNull);
+      expect(inCard('Pulse Red', find.text('Sold out')), findsOneWidget);
+    });
+
+    testWidgets('cart stops at the available stock', (tester) async {
+      final harness = Harness(userId: customerId);
+      await harness.pump(tester);
+
+      final add = inCard('Skywing Blue', find.byType(FilledButton));
+      await tapVisible(tester, add);
+      await tapVisible(tester, add);
+
+      expect(harness.container.read(cartCountProvider), 2);
+      expect(inCard('Skywing Blue', find.text('Max in cart')), findsOneWidget);
+    });
+
+    testWidgets('checkout saves the order and empties the cart', (tester) async {
+      final harness = Harness(userId: customerId);
+      await harness.pump(tester);
+
+      await tapVisible(tester, inCard('Starter Bass', find.byType(FilledButton)));
+      await tapVisible(tester, find.text('Cart'));
+
+      expect(find.text('Your Cart'), findsOneWidget);
+      await tapVisible(tester, find.widgetWithText(FilledButton, 'Checkout'));
+
+      expect(find.text('Thank you for your order!'), findsOneWidget);
+      expect(find.text('#00001'), findsOneWidget);
+      expect(find.text('₱6,685'), findsOneWidget);
+      expect(harness.container.read(cartCountProvider), 0);
+      expect(
+        harness.products.firstWhere((p) => p.id == 1).stock,
+        14,
+      );
+
+      await tapVisible(tester, find.text('View my orders'));
+      expect(find.text('Order #00001'), findsOneWidget);
+    });
+
+    testWidgets('a failed checkout refreshes stock in the cart', (
+      tester,
+    ) async {
+      final harness = Harness(userId: customerId);
+      await harness.pump(tester);
+
+      final add = inCard('Skywing Blue', find.byType(FilledButton));
+      await tapVisible(tester, add);
+      await tapVisible(tester, add);
+      final index = harness.products.indexWhere((p) => p.id == 3);
+      harness.products[index] = harness.products[index].copyWith(stock: 1);
+
+      await tapVisible(tester, find.text('Cart'));
+      await tapVisible(tester, find.widgetWithText(FilledButton, 'Checkout'));
+
+      expect(find.text('Only 1 left of "Skywing Blue".'), findsOneWidget);
+      expect(harness.container.read(cartCountProvider), 1);
+      expect(find.text('Max available: 1'), findsOneWidget);
+      expect(harness.orders.orders, isEmpty);
+
+      await tapVisible(tester, find.byTooltip('Remove Skywing Blue'));
+      expect(find.text('Only 1 left of "Skywing Blue".'), findsNothing);
+    });
+
+    testWidgets('signing out empties the cart', (tester) async {
+      final harness = Harness(userId: customerId);
+      await harness.pump(tester);
+
+      await tapVisible(tester, inCard('Starter Bass', find.byType(FilledButton)));
+      expect(harness.container.read(cartCountProvider), 1);
+
+      await tapVisible(tester, find.byTooltip('Account'));
+      await tapVisible(tester, find.text('Sign out'));
+
+      expect(find.text('Welcome back'), findsOneWidget);
+      expect(harness.container.read(cartCountProvider), 0);
     });
   });
 
-  group('filters', () {
-    testWidgets('category chips filter the product grid', (tester) async {
-      await _pumpShop(tester);
+  group('admin', () {
+    testWidgets('lands on product management with edit and delete', (
+      tester,
+    ) async {
+      await Harness(userId: adminId).pump(tester);
 
-      await _tapVisible(tester, find.widgetWithText(FilterChip, 'Bass Guitar'));
-
-      expect(_inGrid('Global B1 Bass'), findsOneWidget);
-      expect(_inGrid('Pulse ST Red'), findsNothing);
-      expect(find.text('Page 1 of 1'), findsOneWidget);
+      expect(find.text('Manage Products'), findsOneWidget);
+      expect(find.text('Add product'), findsOneWidget);
+      expect(find.text('Edit'), findsWidgets);
+      expect(find.byTooltip('Delete Starter Bass'), findsOneWidget);
+      expect(find.text('Add to cart'), findsNothing);
     });
 
-    testWidgets('price range limits the products shown', (tester) async {
-      final provider = await _pumpShop(tester);
+    testWidgets('delete asks for confirmation naming the product', (
+      tester,
+    ) async {
+      final harness = Harness(userId: adminId);
+      await harness.pump(tester);
 
-      expect(find.byType(RangeSlider), findsOneWidget);
-      provider.updatePriceRange(const RangeValues(15000, 20000));
-      provider.applyPriceRange();
+      await tapVisible(tester, find.byTooltip('Delete Starter Bass'));
+      expect(find.textContaining('"Starter Bass"'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
       await tester.pumpAndSettle();
 
-      expect(_inGrid('Global B1 Bass'), findsOneWidget);
-      expect(_inGrid('Skywing Sunburst'), findsOneWidget);
-      expect(_inGrid('Pulse ST Red'), findsNothing);
-      expect(find.text('Showing 1–2 of 2 products'), findsOneWidget);
-
-      await _tapVisible(tester, find.widgetWithText(TextButton, 'Reset'));
-      expect(find.text('Showing 1–6 of 9 products'), findsOneWidget);
+      expect(harness.products.any((p) => p.id == 1), isFalse);
     });
 
-    testWidgets('price and category filters combine', (tester) async {
-      final provider = await _pumpShop(tester);
+    testWidgets('product form validates input', (tester) async {
+      await Harness(userId: adminId).pump(tester);
 
-      provider.selectCategory('Electric Guitar');
-      provider.updatePriceRange(const RangeValues(9000, 20000));
-      provider.applyPriceRange();
-      await tester.pumpAndSettle();
+      await tapVisible(tester, find.text('Add product'));
+      await tester.enterText(find.widgetWithText(TextFormField, 'Price *'), '-5');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Stock *'), '1.5');
+      await tapVisible(tester, find.widgetWithText(FilledButton, 'Add product'));
 
-      expect(provider.products.map((p) => p.id), [
-        'semi-hollow-blue',
-        'stratocaster-skywing-blue',
-        'stratocaster-skywing-sunburst',
-      ]);
-    });
-  });
-
-  group('provider', () {
-    test('price bounds are rounded out to the slider step', () async {
-      final provider = ProductProvider(
-        service: FakeProductService(_sampleProducts),
-      );
-      await provider.initialize();
-
-      expect(provider.priceBounds!.min, 6600);
-      expect(provider.priceBounds!.max, 53000);
-      expect(provider.isPriceFiltered, isFalse);
+      expect(find.text('A product name is required'), findsOneWidget);
+      expect(find.text('Price cannot be negative'), findsOneWidget);
+      expect(find.text('Stock must be a whole number'), findsOneWidget);
+      expect(find.text('Choose a category'), findsOneWidget);
     });
 
-    test('deleting the only product on the last page steps back', () async {
-      final provider = ProductProvider(
-        service: FakeProductService(_sampleProducts.take(7).toList()),
-      );
-      await provider.initialize();
-      provider.nextPage();
-      await Future<void>.delayed(Duration.zero);
-      expect(provider.currentPage, 1);
-      expect(provider.products, hasLength(1));
+    testWidgets('edit form is pre-filled', (tester) async {
+      await Harness(userId: adminId).pump(tester);
 
-      await provider.deleteProduct(provider.products.single.id);
+      await tapVisible(tester, inCard('Global B1 Bass', find.text('Edit')));
 
-      expect(provider.currentPage, 0);
-      expect(provider.totalCount, 6);
-      expect(provider.totalPages, 1);
+      expect(find.text('Edit Product'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Global B1 Bass'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, '15999'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, '8'), findsOneWidget);
     });
-
-    test('updating a price re-sorts the page', () async {
-      final provider = ProductProvider(
-        service: FakeProductService(_sampleProducts),
-      );
-      await provider.initialize();
-
-      await provider.updateProduct('355-epiphone', price: 1000);
-
-      expect(provider.products.first.id, '355-epiphone');
-      expect(provider.priceBounds!.min, 1000);
-    });
-  });
-
-  testWidgets('product card toggles its bookmark icon', (tester) async {
-    await _pumpShop(tester);
-
-    final bookmark = find.byIcon(Icons.bookmark_border_rounded).first;
-    await tester.ensureVisible(bookmark);
-    await tester.pumpAndSettle();
-    await tester.tap(bookmark);
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 3));
-
-    expect(find.byIcon(Icons.bookmark_rounded).first, findsOneWidget);
-  });
-
-  testWidgets('theme icon toggles the app theme', (tester) async {
-    await _pumpShop(tester);
-
-    expect(find.byIcon(Icons.light_mode_outlined), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.light_mode_outlined));
-    await tester.pumpAndSettle();
-
-    expect(find.byIcon(Icons.dark_mode_outlined), findsOneWidget);
-  });
-
-  testWidgets('a product card routes to its detail page and back', (
-    tester,
-  ) async {
-    await _pumpShop(tester);
-
-    await _tapVisible(tester, _inGrid('Global B1 Bass'));
-
-    expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
-    expect(find.byTooltip('Manage product'), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
-    await tester.pumpAndSettle();
-
-    expect(find.text('FIND YOUR'), findsOneWidget);
   });
 }

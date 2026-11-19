@@ -1,61 +1,80 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../main.dart' show supabase;
+import '../core/app_exception.dart';
 
 abstract class AuthService {
-  bool get isSignedIn;
+  Stream<String?> userIdChanges();
 
-  String? get email;
+  Future<void> signInWithEmail({
+    required String email,
+    required String password,
+  });
 
-  Stream<void> get changes;
+  Future<bool> signUpWithEmail({
+    required String email,
+    required String password,
+    required String firstname,
+    required String lastname,
+  });
 
-  Future<void> signIn({required String email, required String password});
-
-  Future<bool> signUp({required String email, required String password});
-
-  Future<void> signInWithGitHub();
+  Future<void> signInWithGoogle();
 
   Future<void> signOut();
 }
 
 class SupabaseAuthService implements AuthService {
+  SupabaseAuthService(this._client);
+
+  final SupabaseClient _client;
+
   String? get _redirectUrl => kIsWeb ? Uri.base.origin : null;
 
   @override
-  bool get isSignedIn => supabase.auth.currentSession != null;
-
-  @override
-  String? get email => supabase.auth.currentUser?.email;
-
-  @override
-  Stream<void> get changes => supabase.auth.onAuthStateChange;
-
-  @override
-  Future<void> signIn({required String email, required String password}) async {
-    await supabase.auth.signInWithPassword(email: email, password: password);
+  Stream<String?> userIdChanges() {
+    return _client.auth.onAuthStateChange
+        .map((event) => event.session?.user.id)
+        .distinct();
   }
 
   @override
-  Future<bool> signUp({required String email, required String password}) async {
-    final response = await supabase.auth.signUp(
-      email: email,
-      password: password,
-      emailRedirectTo: _redirectUrl,
-    );
-    return response.session != null;
-  }
-
-  @override
-  Future<void> signInWithGitHub() async {
-    await supabase.auth.signInWithOAuth(
-      OAuthProvider.github,
-      redirectTo: _redirectUrl,
+  Future<void> signInWithEmail({
+    required String email,
+    required String password,
+  }) {
+    return guardSupabase(
+      () => _client.auth.signInWithPassword(email: email, password: password),
     );
   }
 
   @override
-  Future<void> signOut() async {
-    await supabase.auth.signOut();
+  Future<bool> signUpWithEmail({
+    required String email,
+    required String password,
+    required String firstname,
+    required String lastname,
+  }) {
+    return guardSupabase(() async {
+      final response = await _client.auth.signUp(
+        email: email,
+        password: password,
+        emailRedirectTo: _redirectUrl,
+        data: {'firstname': firstname, 'lastname': lastname},
+      );
+      return response.session != null;
+    });
   }
+
+  @override
+  Future<void> signInWithGoogle() {
+    return guardSupabase(
+      () => _client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: _redirectUrl,
+      ),
+    );
+  }
+
+  @override
+  Future<void> signOut() => guardSupabase(() => _client.auth.signOut());
 }

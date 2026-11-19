@@ -1,76 +1,81 @@
-# RIFFS – Flutter + Supabase e-commerce
+# RIFFS – Flutter E-Commerce (Final Exam)
 
-CS Elective 2 · Supabase-Auth Activity (branch `backend-auth`)
+CS Elective 2 · Final Exam Project (branch `final-exam`)
 
-The shop's products live in a Supabase (PostgreSQL) `products` table. The app reads,
-filters, paginates, updates and deletes them with the `supabase_flutter` client, and
-keeps the shop state in a `ProductProvider` (Provider / ChangeNotifier).
+A guitar and bass shop with two roles. **Admins** manage products, categories and
+orders. **Customers** browse, filter, build a cart, check out and see their order
+history. Every new account starts as a customer.
 
-## Features in this branch
+| Area | Used |
+| --- | --- |
+| State management | Riverpod 3 (`Notifier`, `FutureProvider`, `StreamProvider`) |
+| Backend | Supabase Auth, Postgres, Row Level Security |
+| Sign-in | Email and password, and Google |
+| Images | Supabase Storage bucket `product-images` |
 
-- **Price filter** – a price range slider on the home screen. Releasing the slider runs
-  `.gte('price', min).lte('price', max)` on Supabase.
-- **Pagination** – 6 products per page using `.range(from, to)` with
-  `.count(CountOption.exact)` for the total, with previous / page number / next buttons.
-- **Category filter** – `.eq('category', ...)`, combined with the price filter.
-- **Update / delete** – the ⋮ menu on a product page edits the name and price
-  (`.update(...).eq('id', id)`) or deletes the product (`.delete().eq('id', id)`).
+## Architecture
 
-Every query follows the order filter → `.order()` → `.range()`.
+Screens call providers, providers call services, and only services talk to Supabase.
+
+```
+lib/
+  core/        AppException (permission-denied, network and database errors), formatters
+  models/      Product, ProductCategory, UserProfile, CartItem, Order, OrderItem
+  services/    auth, profile, category, product, storage, order  ← only code that uses Supabase
+  providers/   Riverpod providers and notifiers, plus the router and its auth gate
+  screens/     auth/, customer/, admin/
+  widgets/     shared UI (product card, filters, pagination, state views, navigation)
+  theme/       app theme
+supabase/
+  final_exam_setup.sql   tables, functions, trigger, RLS, storage and seed data
+```
+
+## Security
+
+The app hides admin buttons from customers, but that is only the interface. The real
+rules are in the database:
+
+- **RLS is enabled on every table**, and every policy is limited to signed-in users,
+  so signed-out requests get nothing.
+- `is_admin()` is `security definer`, so policies on `profiles` can call it without
+  infinite recursion.
+- Customers can update only their own `firstname` and `lastname`. `role_id` is not
+  granted, so nobody can promote themselves.
+- Orders and order items have no insert permission at all. The only way to create
+  one is `place_order(items)`, which:
+  - reads each product's **price, name and stock from the database** (the app only
+    sends product ids and quantities),
+  - locks those rows (`for update`) so two checkouts cannot oversell,
+  - saves the order and all its items, reduces stock, and sets the status to `done`
+    in **one transaction**. If any item fails, nothing is saved,
+  - stores a snapshot of the product name and unit price on each order item.
+- Storage uploads, updates and deletes are allowed only for admins.
 
 ## Setup
 
-1. Create a project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor → New query**, paste `supabase/products_schema.sql` and run it.
-   It creates the `products` table, turns on Row Level Security with SELECT, INSERT,
-   UPDATE and DELETE policies, and adds the 9 starter products.
-3. Copy the **Project URL** and **anon / publishable key** from
-   **Project Settings → API** into `supabaseUrl` and `supabasePublishableKey` in
-   `lib/main.dart`. Never use the `service_role` key in the app.
-4. Run:
+1. Create a **new** Supabase project for the exam, so the earlier activity branches
+   keep working on their own project.
+2. In **SQL Editor**, run `supabase/final_exam_setup.sql`.
+3. Put the project URL and publishable key in `lib/main.dart`.
+4. **Google sign-in**
+   - In Google Cloud Console, create an OAuth client ID of type *Web application*.
+   - Authorized JavaScript origin: `http://localhost:3000`
+   - Authorized redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`
+   - In Supabase, open **Authentication → Sign In / Providers → Google**, enable it and
+     paste the client ID and secret.
+5. In **Authentication → URL Configuration**, set the Site URL to
+   `http://localhost:3000` and add `http://localhost:3000/**` to the Redirect URLs.
+6. Run the app:
 
    ```bash
    flutter pub get
-   flutter run
-   ```
-
-## Project structure
-
-| Path | Purpose |
-| --- | --- |
-| `lib/main.dart` | `Supabase.initialize(...)` and the global `supabase` client |
-| `lib/services/product_service.dart` | All Supabase queries |
-| `lib/providers/product_provider.dart` | Page, filters, loading and error state |
-| `lib/widgets/home/price_range_filter.dart` | Price slider |
-| `lib/widgets/product/pagination_bar.dart` | Page controls |
-| `supabase/products_schema.sql` | Table, RLS policies and seed data |
-
-## Authentication (branch `backend-auth`)
-
-The shop is behind a sign-in screen backed by Supabase Auth.
-
-- **Email and password** – `supabase.auth.signUp(...)` and
-  `supabase.auth.signInWithPassword(...)`.
-- **GitHub (third-party provider)** – `supabase.auth.signInWithOAuth(OAuthProvider.github)`.
-- **Sign out** – the account menu in the app bar calls `supabase.auth.signOut()`.
-
-`AuthProvider` listens to `supabase.auth.onAuthStateChange`, and the router redirects
-to `/login` whenever there is no session.
-
-### Auth setup
-
-1. On GitHub, open **Settings → Developer settings → OAuth Apps → New OAuth App**.
-   - Homepage URL: `http://localhost:3000`
-   - Authorization callback URL: `https://<project-ref>.supabase.co/auth/v1/callback`
-2. In Supabase, open **Authentication → Sign In / Providers → GitHub**, enable it and
-   paste the Client ID and Client Secret from GitHub.
-3. In **Authentication → URL Configuration**, set the Site URL to
-   `http://localhost:3000` and add `http://localhost:3000/**` to the Redirect URLs.
-4. Run the app on the same port:
-
-   ```bash
    flutter run -d chrome --web-port 3000
    ```
 
-5. Optional: run `supabase/auth_policies.sql` so only signed-in users can add, edit or
-   delete products.
+7. Sign up, then make that account an admin in the SQL Editor:
+
+   ```sql
+   update public.profiles
+      set role_id = (select id from public.roles where role = 'admin')
+    where email = 'you@example.com';
+   ```

@@ -1,11 +1,11 @@
 {
-    "name": "prelim_exam",
-    "short_name": "prelim_exam",
+    "name": "Final Exam",
+    "short_name": "Final Exam",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "RIFFS guitar and bass shop",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

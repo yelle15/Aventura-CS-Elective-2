@@ -1,45 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'providers/auth_provider.dart';
-import 'routing/app_router.dart';
+import 'providers/router_provider.dart';
+import 'providers/theme_provider.dart';
 import 'theme/app_theme.dart';
 
-class RiftsApp extends StatefulWidget {
-  const RiftsApp({super.key});
+class RiffsApp extends ConsumerWidget {
+  const RiffsApp({super.key});
 
   @override
-  State<RiftsApp> createState() => _RiftsAppState();
-}
-
-class _RiftsAppState extends State<RiftsApp> {
-  ThemeMode _themeMode = ThemeMode.dark;
-  late final GoRouter _router;
-
-  @override
-  void initState() {
-    super.initState();
-    _router = createAppRouter(_toggleTheme, context.read<AuthProvider>());
-  }
-
-  void _toggleTheme() {
-    setState(() {
-      _themeMode = _themeMode == ThemeMode.dark
-          ? ThemeMode.light
-          : ThemeMode.dark;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'RIFTS',
+      title: 'RIFFS',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: _themeMode,
-      routerConfig: _router,
+      themeMode: ref.watch(themeModeProvider),
+      routerConfig: ref.watch(routerProvider),
     );
   }
 }

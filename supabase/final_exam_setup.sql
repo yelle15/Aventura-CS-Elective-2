@@ -35,7 +35,7 @@ create table public.products (
   description  text          not null default '',
   price        numeric(12,2) not null check (price >= 0),
   stock        integer       not null default 0 check (stock >= 0),
-  image_url    text,
+  image_url    text          not null check (length(trim(image_url)) > 0),
   category_id  bigint        not null references public.categories (id) on delete restrict
 );
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/app_exception.dart';
+import '../theme/app_theme.dart';
 
 class LoadingView extends StatelessWidget {
   const LoadingView({super.key, this.height = 240});
@@ -41,13 +42,23 @@ class MessageView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(height: 12),
+            Container(
+              width: 92,
+              height: 92,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppTheme.red.withAlpha(28),
+                border: Border.all(color: AppTheme.red.withAlpha(70)),
+              ),
+              child: Icon(icon, size: 42, color: AppTheme.red),
+            ),
+            const SizedBox(height: 16),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
+              style: AppTheme.display(
+                fontSize: 22,
+                color: theme.colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 6),

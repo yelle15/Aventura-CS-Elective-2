@@ -28,7 +28,9 @@ class SupabaseAuthService implements AuthService {
 
   final SupabaseClient _client;
 
-  String? get _redirectUrl => kIsWeb ? Uri.base.origin : null;
+  static const mobileRedirectUrl = 'com.riffs.app://login-callback';
+
+  String get _redirectUrl => kIsWeb ? Uri.base.origin : mobileRedirectUrl;
 
   @override
   Stream<String?> userIdChanges() {

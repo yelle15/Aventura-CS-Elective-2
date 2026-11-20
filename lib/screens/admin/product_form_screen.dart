@@ -11,6 +11,7 @@ import '../../providers/product_providers.dart';
 import '../../widgets/product_image.dart';
 import '../../widgets/riffs_app_bar.dart';
 import '../../widgets/state_views.dart';
+import '../../widgets/riffs_decor.dart';
 
 class ProductFormScreen extends ConsumerWidget {
   const ProductFormScreen({super.key, this.productId});
@@ -94,7 +95,11 @@ class _ProductFormState extends ConsumerState<_ProductForm> {
   Uint8List? _pickedBytes;
   String? _pickedName;
   String? _pickedType;
+  String? _imageError;
   bool _saving = false;
+
+  bool get _hasImage =>
+      _pickedBytes != null || (widget.product?.imageUrl?.isNotEmpty ?? false);
 
   bool get _isEditing => widget.product != null;
 
@@ -141,6 +146,7 @@ class _ProductFormState extends ConsumerState<_ProductForm> {
         _pickedBytes = bytes;
         _pickedName = file.name;
         _pickedType = file.mimeType ?? _guessType(file.name);
+        _imageError = null;
       });
     } catch (error) {
       if (mounted) {
@@ -158,7 +164,11 @@ class _ProductFormState extends ConsumerState<_ProductForm> {
   }
 
   Future<void> _save() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    final formValid = _formKey.currentState?.validate() ?? false;
+    setState(
+      () => _imageError = _hasImage ? null : 'Choose an image for the product',
+    );
+    if (!formValid || !_hasImage) return;
     setState(() => _saving = true);
     final actions = ref.read(catalogActionsProvider);
     try {
@@ -227,19 +237,70 @@ class _ProductFormState extends ConsumerState<_ProductForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            height: 220,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: theme.colorScheme.outlineVariant),
-            ),
-            child: ClipRect(
-              child: picked != null
-                  ? Image.memory(picked, fit: BoxFit.contain)
-                  : ProductImage(url: widget.product?.imageUrl, iconSize: 72),
+          Text(
+            'Product image *',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
             ),
           ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: _saving ? null : _pickImage,
+            borderRadius: BorderRadius.circular(24),
+            child: Container(
+              height: 220,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: _imageError != null
+                      ? theme.colorScheme.error
+                      : Colors.transparent,
+                  width: 1.6,
+                ),
+              ),
+              child: ImageGlow(
+                radius: 22,
+                padding: const EdgeInsets.all(16),
+                child: ClipRect(
+                  child: picked != null
+                      ? Image.memory(picked, fit: BoxFit.contain)
+                      : _hasImage
+                          ? ProductImage(
+                              url: widget.product?.imageUrl,
+                              iconSize: 72,
+                            )
+                          : Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.add_photo_alternate_outlined,
+                                    size: 48,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Tap to choose an image',
+                                    style: theme.textTheme.bodyMedium,
+                                  ),
+                                ],
+                              ),
+                            ),
+                ),
+              ),
+            ),
+          ),
+          if (_imageError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 12),
+              child: Text(
+                _imageError!,
+                style: TextStyle(
+                  color: theme.colorScheme.error,
+                  fontSize: 12,
+                ),
+              ),
+            ),
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerLeft,
@@ -247,7 +308,7 @@ class _ProductFormState extends ConsumerState<_ProductForm> {
               onPressed: _saving ? null : _pickImage,
               icon: const Icon(Icons.image_outlined),
               label: Text(
-                picked != null || widget.product?.imageUrl != null
+                _hasImage
                     ? 'Change image'
                     : 'Choose image',
               ),
@@ -330,17 +391,26 @@ class _ProductFormState extends ConsumerState<_ProductForm> {
               ),
             ),
           const SizedBox(height: 24),
-          SizedBox(
-            height: 50,
-            child: FilledButton(
-              onPressed: _saving ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_isEditing ? 'Save changes' : 'Add product'),
+          GradientFill(
+            enabled: !_saving,
+            radius: 18,
+            child: SizedBox(
+              height: 54,
+              child: FilledButton(
+                onPressed: _saving ? null : _save,
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                child: _saving
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(_isEditing ? 'Save changes' : 'Add product'),
+              ),
             ),
           ),
         ],

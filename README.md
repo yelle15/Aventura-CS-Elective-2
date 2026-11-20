@@ -64,13 +64,19 @@ rules are in the database:
    - In Supabase, open **Authentication → Sign In / Providers → Google**, enable it and
      paste the client ID and secret.
 5. In **Authentication → URL Configuration**, set the Site URL to
-   `http://localhost:3000` and add `http://localhost:3000/**` to the Redirect URLs.
+   `http://localhost:3000` and add both of these to the Redirect URLs:
+   - `http://localhost:3000/**` for the web app
+   - `com.riffs.app://login-callback` for the Android and iOS apps, which open
+     through this link after Google sign-in
 6. Run the app:
 
    ```bash
    flutter pub get
-   flutter run -d chrome --web-port 3000
+   flutter run -d web-server --web-port 3000
    ```
+
+   Then open `http://localhost:3000` in Chrome. On a phone or emulator, run
+   `flutter run` and pick the device.
 
 7. Sign up, then make that account an admin in the SQL Editor:
 

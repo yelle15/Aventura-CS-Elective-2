@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/app_exception.dart';
 import '../../models/product_category.dart';
 import '../../providers/product_providers.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/app_navigation.dart';
 import '../../widgets/riffs_app_bar.dart';
 import '../../widgets/state_views.dart';
@@ -99,7 +100,18 @@ class AdminCategoriesScreen extends ConsumerWidget {
                       child: Card(
                         margin: EdgeInsets.zero,
                         child: ListTile(
-                          leading: const Icon(Icons.label_outline_rounded),
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: AppTheme.red.withAlpha(30),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(
+                              Icons.label_outline_rounded,
+                              color: AppTheme.red,
+                            ),
+                          ),
                           title: Text(
                             category.name,
                             style: const TextStyle(fontWeight: FontWeight.w700),

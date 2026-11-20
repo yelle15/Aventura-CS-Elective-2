@@ -4,6 +4,7 @@ import '../core/formatters.dart';
 import '../models/product.dart';
 import '../theme/app_theme.dart';
 import 'product_image.dart';
+import 'riffs_decor.dart';
 import 'stock_label.dart';
 
 class ProductCard extends StatelessWidget {
@@ -21,14 +22,13 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Card(
       margin: EdgeInsets.zero,
-      color: isDark ? AppTheme.backgroundSecondary : AppTheme.lightCard,
+      color: AppTheme.panel(context),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: AppTheme.outline(context)),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -39,46 +39,58 @@ class ProductCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Opacity(
-                  opacity: product.inStock ? 1 : 0.45,
-                  child: ClipRect(child: ProductImage(url: product.imageUrl)),
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (product.categoryName.isNotEmpty)
-                Text(
-                  product.categoryName.toUpperCase(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.red,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ImageGlow(
+                    padding: const EdgeInsets.all(8),
+                    child: Opacity(
+                      opacity: product.inStock ? 1 : 0.45,
+                      child: ClipRect(
+                        child: ProductImage(url: product.imageUrl),
+                      ),
+                    ),
                   ),
                 ),
-              const SizedBox(height: 2),
-              Text(
-                product.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (product.categoryName.isNotEmpty)
+                      Text(
+                        product.categoryName.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.red,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    Text(
+                      product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        height: 1.25,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
                       formatPeso(product.price),
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                  ),
-                ],
+                    StockLabel(product: product),
+                  ],
+                ),
               ),
-              StockLabel(product: product),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               actions,
             ],
           ),

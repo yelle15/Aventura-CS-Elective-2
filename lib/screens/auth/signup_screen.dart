@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_providers.dart';
 import 'auth_layout.dart';
+import '../../widgets/riffs_decor.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -140,17 +141,26 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             if (form.error != null) AuthMessage(text: form.error!, isError: true),
             if (form.notice != null) AuthMessage(text: form.notice!),
             const SizedBox(height: 16),
-            SizedBox(
-              height: 48,
-              child: FilledButton(
-                onPressed: form.isBusy ? null : _submit,
-                child: form.isBusy
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Sign up'),
+            GradientFill(
+              enabled: !form.isBusy,
+              radius: 18,
+              child: SizedBox(
+                height: 54,
+                child: FilledButton(
+                  onPressed: form.isBusy ? null : _submit,
+                  style: FilledButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  child: form.isBusy
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Sign up'),
+                ),
               ),
             ),
             const SizedBox(height: 20),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/product.dart';
 import '../../providers/cart_provider.dart';
+import '../../widgets/riffs_decor.dart';
 import '../../widgets/state_views.dart';
 
 void addProductToCart(
@@ -43,28 +44,37 @@ class AddToCartButton extends ConsumerWidget {
       ),
     );
     final atLimit = inCart >= product.stock;
+    final canAdd = product.inStock && !atLimit;
 
-    return SizedBox(
-      width: double.infinity,
-      height: 38,
-      child: FilledButton.icon(
-        onPressed: product.inStock && !atLimit
-            ? () => addProductToCart(context, ref, product)
-            : null,
-        icon: Icon(
-          product.inStock
-              ? Icons.add_shopping_cart_rounded
-              : Icons.remove_shopping_cart_outlined,
-          size: 18,
-        ),
-        label: Text(
-          !product.inStock
-              ? 'Sold out'
-              : atLimit
-                  ? 'Max in cart'
-                  : inCart > 0
-                      ? 'Add more ($inCart)'
-                      : 'Add to cart',
+    return GradientFill(
+      enabled: canAdd,
+      radius: 14,
+      child: SizedBox(
+        width: double.infinity,
+        height: 40,
+        child: FilledButton.icon(
+          onPressed: canAdd ? () => addProductToCart(context, ref, product) : null,
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          icon: Icon(
+            product.inStock
+                ? Icons.add_shopping_cart_rounded
+                : Icons.remove_shopping_cart_outlined,
+            size: 18,
+          ),
+          label: Text(
+            !product.inStock
+                ? 'Sold out'
+                : atLimit
+                    ? 'Max in cart'
+                    : inCart > 0
+                        ? 'Add more ($inCart)'
+                        : 'Add to cart',
+          ),
         ),
       ),
     );

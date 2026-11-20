@@ -5,23 +5,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:prelim_exam/app.dart';
-import 'package:prelim_exam/core/app_exception.dart';
-import 'package:prelim_exam/models/cart_item.dart';
-import 'package:prelim_exam/models/order.dart';
-import 'package:prelim_exam/models/product.dart';
-import 'package:prelim_exam/models/product_category.dart';
-import 'package:prelim_exam/models/user_profile.dart';
-import 'package:prelim_exam/providers/cart_provider.dart';
-import 'package:prelim_exam/providers/router_provider.dart';
-import 'package:prelim_exam/providers/service_providers.dart';
-import 'package:prelim_exam/services/auth_service.dart';
-import 'package:prelim_exam/services/category_service.dart';
-import 'package:prelim_exam/services/order_service.dart';
-import 'package:prelim_exam/services/product_service.dart';
-import 'package:prelim_exam/services/profile_service.dart';
-import 'package:prelim_exam/services/storage_service.dart';
-import 'package:prelim_exam/widgets/product_card.dart';
+import 'package:riffs/app.dart';
+import 'package:riffs/core/app_exception.dart';
+import 'package:riffs/models/cart_item.dart';
+import 'package:riffs/models/order.dart';
+import 'package:riffs/models/product.dart';
+import 'package:riffs/models/product_category.dart';
+import 'package:riffs/models/user_profile.dart';
+import 'package:riffs/providers/cart_provider.dart';
+import 'package:riffs/providers/router_provider.dart';
+import 'package:riffs/providers/service_providers.dart';
+import 'package:riffs/services/auth_service.dart';
+import 'package:riffs/services/category_service.dart';
+import 'package:riffs/services/order_service.dart';
+import 'package:riffs/services/product_service.dart';
+import 'package:riffs/services/profile_service.dart';
+import 'package:riffs/services/storage_service.dart';
+import 'package:riffs/widgets/product_card.dart';
 
 const customerId = 'customer-1';
 const adminId = 'admin-1';
@@ -339,7 +339,7 @@ void main() {
     testWidgets('signed-out users only see the login screen', (tester) async {
       await Harness().pump(tester);
 
-      expect(find.text('Welcome back'), findsOneWidget);
+      expect(find.text('Welcome!'), findsOneWidget);
       expect(find.text('Continue with Google'), findsOneWidget);
       expect(find.byType(ProductCard), findsNothing);
     });
@@ -500,7 +500,7 @@ void main() {
       await tapVisible(tester, find.byTooltip('Account'));
       await tapVisible(tester, find.text('Sign out'));
 
-      expect(find.text('Welcome back'), findsOneWidget);
+      expect(find.text('Welcome!'), findsOneWidget);
       expect(harness.container.read(cartCountProvider), 0);
     });
   });

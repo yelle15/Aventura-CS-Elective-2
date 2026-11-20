@@ -48,18 +48,35 @@ class OrderCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Card(
       margin: EdgeInsets.zero,
+      color: AppTheme.panel(context),
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
         shape: const Border(),
         collapsedShape: const Border(),
-        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        title: Row(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            gradient: AppTheme.redGradient,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: AppTheme.redGlow(alpha: 40),
+          ),
+          child: const Icon(
+            Icons.receipt_long_rounded,
+            color: Colors.white,
+            size: 22,
+          ),
+        ),
+        title: Wrap(
+          spacing: 10,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
               'Order ${formatOrderNumber(order.id)}',
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
-            const SizedBox(width: 10),
             OrderStatusChip(status: order.status),
           ],
         ),
@@ -80,17 +97,35 @@ class OrderCard extends StatelessWidget {
             fontWeight: FontWeight.w800,
           ),
         ),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
         children: [
           const Divider(),
           for (final item in order.items)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(vertical: 5),
               child: Row(
                 children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppTheme.red.withAlpha(28),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Text(
+                      '${item.quantity}×',
+                      style: const TextStyle(
+                        color: AppTheme.red,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      '${item.quantity} × ${item.productName}',
+                      item.productName,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),

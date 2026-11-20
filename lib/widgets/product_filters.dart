@@ -8,20 +8,85 @@ import '../models/product_filter.dart';
 import '../providers/product_providers.dart';
 import '../theme/app_theme.dart';
 
-class ProductFilters extends StatelessWidget {
+class ProductFilters extends ConsumerStatefulWidget {
   const ProductFilters({super.key});
 
   @override
+  ConsumerState<ProductFilters> createState() => _ProductFiltersState();
+}
+
+class _ProductFiltersState extends ConsumerState<ProductFilters> {
+  bool _showPrice = true;
+
+  @override
   Widget build(BuildContext context) {
-    return const Column(
+    final priceApplied = ref.watch(
+      productFilterProvider.select((filter) => filter.priceRange != null),
+    );
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SearchField(),
-        SizedBox(height: 12),
-        _CategoryChips(),
-        SizedBox(height: 12),
-        _PriceSlider(),
+        Row(
+          children: [
+            const Expanded(child: _SearchField()),
+            const SizedBox(width: 10),
+            _PriceToggle(
+              open: _showPrice,
+              active: priceApplied,
+              onPressed: () => setState(() => _showPrice = !_showPrice),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        const _CategoryChips(),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: _showPrice
+              ? const Padding(
+                  padding: EdgeInsets.only(top: 14),
+                  child: _PriceSlider(),
+                )
+              : const SizedBox(width: double.infinity),
+        ),
       ],
+    );
+  }
+}
+
+class _PriceToggle extends StatelessWidget {
+  const _PriceToggle({
+    required this.open,
+    required this.active,
+    required this.onPressed,
+  });
+
+  final bool open;
+  final bool active;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = IconButton(
+      tooltip: open ? 'Hide price filter' : 'Show price filter',
+      onPressed: onPressed,
+      icon: const Icon(Icons.tune_rounded),
+      style: IconButton.styleFrom(
+        fixedSize: const Size(56, 56),
+        foregroundColor: open ? Colors.white : AppTheme.red,
+        backgroundColor: open ? AppTheme.red : AppTheme.panel(context),
+        side: BorderSide(
+          color: open ? AppTheme.red : AppTheme.outline(context),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+    );
+    return Badge(
+      isLabelVisible: active,
+      backgroundColor: open ? Colors.white : AppTheme.red,
+      smallSize: 10,
+      child: button,
     );
   }
 }
@@ -75,7 +140,10 @@ class _SearchFieldState extends ConsumerState<_SearchField> {
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
         hintText: 'Search guitars and basses',
-        prefixIcon: const Icon(Icons.search_rounded),
+        prefixIcon: const Padding(
+          padding: EdgeInsets.only(left: 6),
+          child: Icon(Icons.search_rounded),
+        ),
         suffixIcon: _controller.text.isEmpty
             ? null
             : IconButton(
@@ -83,11 +151,7 @@ class _SearchFieldState extends ConsumerState<_SearchField> {
                 onPressed: _clear,
                 icon: const Icon(Icons.close_rounded),
               ),
-        filled: true,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
+        fillColor: AppTheme.panel(context),
       ),
     );
   }
@@ -95,6 +159,19 @@ class _SearchFieldState extends ConsumerState<_SearchField> {
 
 class _CategoryChips extends ConsumerWidget {
   const _CategoryChips();
+
+  static IconData _iconFor(String name) {
+    final lower = name.toLowerCase();
+    if (lower.contains('bass')) return Icons.graphic_eq_rounded;
+    if (lower.contains('electric')) return Icons.bolt_rounded;
+    if (lower.contains('acoustic')) return Icons.music_note_rounded;
+    if (lower.contains('amp')) return Icons.speaker_rounded;
+    if (lower.contains('pedal') || lower.contains('effect')) {
+      return Icons.tune_rounded;
+    }
+    if (lower.contains('access')) return Icons.headphones_rounded;
+    return Icons.queue_music_rounded;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -106,7 +183,7 @@ class _CategoryChips extends ConsumerWidget {
 
     return categories.when(
       loading: () => const SizedBox(
-        height: 40,
+        height: 48,
         child: Align(
           alignment: Alignment.centerLeft,
           child: SizedBox(
@@ -125,19 +202,31 @@ class _CategoryChips extends ConsumerWidget {
           ),
         ],
       ),
-      data: (items) => Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          _chip(context, 'All', selected == null, () => notifier.selectCategory(null)),
-          for (final category in items)
+      data: (items) => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        child: Row(
+          children: [
             _chip(
               context,
-              category.name,
-              selected == category.id,
-              () => notifier.selectCategory(category.id),
+              'All',
+              Icons.local_fire_department_rounded,
+              selected == null,
+              () => notifier.selectCategory(null),
             ),
-        ],
+            for (final category in items)
+              Padding(
+                padding: const EdgeInsets.only(left: 10),
+                child: _chip(
+                  context,
+                  category.name,
+                  _iconFor(category.name),
+                  selected == category.id,
+                  () => notifier.selectCategory(category.id),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -145,18 +234,42 @@ class _CategoryChips extends ConsumerWidget {
   Widget _chip(
     BuildContext context,
     String label,
+    IconData icon,
     bool isSelected,
     VoidCallback onTap,
   ) {
     final colors = Theme.of(context).colorScheme;
     return FilterChip(
-      label: Text(label),
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isSelected ? Colors.white : AppTheme.red.withAlpha(32),
+            ),
+            child: Icon(icon, size: 16, color: AppTheme.red),
+          ),
+          const SizedBox(width: 8),
+          Text(label),
+        ],
+      ),
       selected: isSelected,
       onSelected: (_) => onTap(),
       showCheckmark: false,
-      selectedColor: colors.primary,
+      selectedColor: AppTheme.red,
+      backgroundColor: AppTheme.panel(context),
+      side: BorderSide(
+        color: isSelected ? AppTheme.red : AppTheme.outline(context),
+      ),
+      shape: const StadiumBorder(),
+      padding: const EdgeInsets.fromLTRB(4, 4, 8, 4),
+      labelPadding: const EdgeInsets.only(left: 2, right: 4),
       labelStyle: TextStyle(
         color: isSelected ? colors.onPrimary : colors.onSurface,
+        fontWeight: FontWeight.w700,
       ),
     );
   }
@@ -217,21 +330,31 @@ class _PriceSliderState extends ConsumerState<_PriceSlider> {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 4),
       decoration: BoxDecoration(
-        color: theme.brightness == Brightness.dark
-            ? AppTheme.backgroundSecondary
-            : AppTheme.lightCard,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
+        color: AppTheme.panel(context),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppTheme.outline(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.tune_rounded, size: 18, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppTheme.red.withAlpha(32),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.payments_outlined,
+                  size: 17,
+                  color: AppTheme.red,
+                ),
+              ),
+              const SizedBox(width: 10),
               Text(
                 'Price range',
                 style: theme.textTheme.titleSmall?.copyWith(
@@ -239,9 +362,14 @@ class _PriceSliderState extends ConsumerState<_PriceSlider> {
                 ),
               ),
               const Spacer(),
-              Text(
-                '${formatPeso(current.start)} – ${formatPeso(current.end)}',
-                style: const TextStyle(fontWeight: FontWeight.w700),
+              Flexible(
+                flex: 3,
+                child: Text(
+                  '${formatPeso(current.start)} – ${formatPeso(current.end)}',
+                  textAlign: TextAlign.right,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
               if (applied != null)
                 TextButton(
